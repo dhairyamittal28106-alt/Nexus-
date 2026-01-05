@@ -4,16 +4,17 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
-// ✨ MUST BE AT THE VERY TOP to load environment variables first
+// ✨ Load environment variables first
 require('dotenv').config(); 
 
 const Message = require('./models/Message');
 const User = require('./models/User');
+const Post = require('./models/Post'); 
 
 const app = express();
 const server = http.createServer(app);
 
-// ✨ UPDATED: Matching your specific .env variable names exactly
+// ✨ Cloudinary Config
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.API_KEY,
@@ -21,7 +22,6 @@ cloudinary.config({
   secure: true
 });
 
-// ✨ Debug Log: Check your terminal to confirm keys are loading
 console.log("☁️ Cloudinary Check:", process.env.API_KEY ? "Credentials Loaded" : "MISSING KEYS");
 
 const io = new Server(server, {
@@ -29,18 +29,55 @@ const io = new Server(server, {
 });
 
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'DELETE', 'PUT'] }));
+
+// ✨ MISSION: Support for 2026 Ultra-HD Glassmorphism renders
 app.use(express.json({ limit: '200mb' }));
 
 // Health check
-app.get("/", (req, res) => res.json({ status: "Nexus Server Active" }));
+app.get("/", (req, res) => res.json({ status: "Nexus 2026 Server Active" }));
+
+// ================= MISSION: POST TO REELS (FIXED & SYNCED) =================
+app.post("/api/posts", async (req, res) => {
+    try {
+        // ✨ FIXED: Extracting keys to match BOTH Frontend and Backend Schema
+        const { user, username, fileUrl, mediaUrl, caption } = req.body;
+        
+        // Use whichever key the frontend sends (handles 'fileUrl' or 'mediaUrl')
+        const finalImage = fileUrl || mediaUrl;
+        const finalUser = user || username;
+
+        if (!finalImage) {
+            return res.status(400).json({ error: "Missing required parameter - file" });
+        }
+
+        // 1. Upload to Cloudinary
+        const uploadRes = await cloudinary.uploader.upload(finalImage, {
+            folder: "nexus_reels",
+        });
+
+        // 2. Save to MongoDB - Mapping to your specific Schema paths
+        const newPost = new Post({
+            user: finalUser,             // Matches Path `user`
+            username: finalUser,         // Fallback for username field
+            fileUrl: uploadRes.secure_url, // Matches Path `fileUrl`
+            mediaUrl: uploadRes.secure_url, // Fallback for mediaUrl field
+            caption: caption || "Captured in Nexus Studio 2026 ✨",
+            timestamp: new Date()
+        });
+
+        await newPost.save();
+        res.status(201).json({ success: true, post: newPost });
+    } catch (err) {
+        console.error("❌ POST TO REELS ERROR:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ✨ Dedicated Cloudinary Upload Route for Chat Images
 app.post("/api/messages/upload", async (req, res) => {
     try {
         if (!req.body.data) return res.status(400).json({ error: "No image data provided" });
-        
-        const fileStr = req.body.data;
-        const uploadResponse = await cloudinary.uploader.upload(fileStr, {
+        const uploadResponse = await cloudinary.uploader.upload(req.body.data, {
             folder: "nexus_chat_images",
         });
         res.json({ url: uploadResponse.secure_url });
@@ -64,7 +101,7 @@ app.delete("/api/messages/history/:myId/:targetId", async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ✨ User Lookup Route (For Offline Identity)
+// ✨ User Lookup Route
 app.get("/api/auth/user/:name", async (req, res) => {
     try {
         const user = await User.findOne({ name: req.params.name });
@@ -75,10 +112,9 @@ app.get("/api/auth/user/:name", async (req, res) => {
 // Other Routes
 app.use("/api/posts", require("./routes/posts"));
 app.use("/api/auth", require("./routes/auth"));
-app.use("/api/ai", require("./routes/ai"));
 app.use("/api/messages", require("./routes/messages"));
 
-// ================= SOCKET LOGIC =================
+// ================= SOCKET LOGIC (PRESERVED & ERRORLESS) =================
 
 let onlineUsers = [];
 
@@ -94,7 +130,6 @@ io.on('connection', (socket) => {
 
   socket.on('join_room', (room) => {
     if (!room) return;
-    console.log(`🚪 User joined room: ${room}`);
     socket.join(room);
   });
 
@@ -107,25 +142,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', async (data) => {
-    console.log("📩 SOCKET PAYLOAD:", data.author, "sending to ID:", data.receiverId);
-
-    if (!data?.senderId || !data?.receiverId) {
-       console.log("❌ MESSAGE BLOCKED — missing sender/receiver IDs");
-       return;
-    }
+    if (!data?.senderId || !data?.receiverId) return;
 
     try {
       const newMessage = new Message({
         sender: String(data.senderId),
         receiver: String(data.receiverId),
         text: String(data.message),
-        image: data.image, // ✨ Storing the Cloudinary URL
+        image: data.image,
+        replyTo: data.replyTo, 
         timestamp: new Date()
       });
 
       const savedMessage = await newMessage.save();
-      console.log("✅ MESSAGE SAVED TO ATLAS:", savedMessage._id);
-
       const broadcastData = {
         ...data,
         id: savedMessage._id.toString(),
@@ -140,6 +169,11 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('send_reaction', (data) => {
+    if (!data.room) return;
+    socket.to(data.room).emit('update_reaction', data);
+  });
+
   socket.on('message_seen', (data) => {
     if (!data?.room || !data?.id) return;
     socket.to(data.room).emit('update_seen_status', data);
@@ -151,14 +185,91 @@ io.on('connection', (socket) => {
     console.log('🔴 Socket disconnected', socket.id);
   });
 });
+// ================= MISSION: RESILIENT MULTI-PROVIDER HUB =================
+app.get("/api/music/search", async (req, res) => {
+    const { q, source } = req.query;
+    if (!q) return res.json([]);
 
+    console.log(`📡 Nexus Hub: Searching ${source?.toUpperCase()} for "${q}"`);
+
+    try {
+        if (source === 'yt' || source === 'spotify') {
+            // Worldwide Piped Nodes for YT/Spotify
+            const ytNodes = [
+                "https://pipedapi.kavin.rocks",
+                "https://api.piped.victr.me",
+                "https://piped-api.lunar.icu",
+                "https://pipedapi.leptons.xyz"
+            ];
+
+            for (const node of ytNodes) {
+                try {
+                    const ytRes = await fetch(`${node}/search?q=${encodeURIComponent(q)}&filter=music_songs`, { signal: AbortSignal.timeout(3000) });
+                    const contentType = ytRes.headers.get("content-type");
+                    
+                    if (contentType && contentType.includes("application/json")) {
+                        const ytData = await ytRes.json();
+                        if (ytData.items && ytData.items.length > 0) {
+                            return res.json(ytData.items.map(item => ({
+                                title: item.title,
+                                artist: item.uploaderName,
+                                url: `${node}/streams/${item.url.split("v=")[1]}`,
+                                cover: item.thumbnail,
+                                source: 'YouTube Music'
+                            })));
+                        }
+                    }
+                } catch (e) { continue; } // Try next node
+            }
+        } 
+        
+        if (source === 'gaana' || source === 'jiosaavn') {
+            const saavnNodes = [
+                "https://saavn.dev/api/search/songs",
+                "https://jiosaavn-api-beta.vercel.app/search/songs"
+            ];
+
+            for (const node of saavnNodes) {
+                try {
+                    const saavnRes = await fetch(`${node}?query=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(3000) });
+                    const saavnData = await saavnRes.json();
+                    if (saavnData.success && saavnData.data.results) {
+                        return res.json(saavnData.data.results.map(song => ({
+                            title: song.name,
+                            artist: song.artists.primary[0]?.name,
+                            url: song.downloadUrl[song.downloadUrl.length - 1]?.url,
+                            cover: song.image[song.image.length - 1]?.url,
+                            source: 'Gaana/Saavn'
+                        })));
+                    }
+                } catch (e) { continue; }
+            }
+        }
+
+        // 🛡️ EMERGENCY FALLBACK (Free/Open Source)
+        // If all APIs fail, we return high-quality system tracks so user can still vibe
+        res.json([
+            { 
+                title: `${q} (Nexus AI Mix)`, 
+                artist: "Nexus System", 
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", 
+                cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400", 
+                source: "Backup Node" 
+            }
+        ]);
+
+    } catch (err) {
+        console.error("❌ HUB FATAL ERROR:", err.message);
+        res.status(500).json({ error: "All nodes unreachable" });
+    }
+});
 // ================= DATABASE =================
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("🔥 MongoDB Active"))
+  .then(() => console.log("🔥 MongoDB Active - Nexus 2026 Core"))
   .catch(err => console.log("❌ MongoDB Error:", err.message));
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
-    console.log(`🚀 Server on Port ${PORT}`);
+    console.log(`🚀 Server on Port ${PORT} - READY FOR BIG 2026`);
 });

@@ -3,18 +3,31 @@ import { useNavigate } from 'react-router-dom';
 
 const Search = () => {
     const [query, setQuery] = useState("");
+    const [searchType, setSearchType] = useState("people"); // people, songs, or filters
     const [results, setResults] = useState([]); 
     const [suggestions, setSuggestions] = useState([]); 
-    const [pendingRequests, setPendingRequests] = useState([]); // ✨ Track incoming requests
-    const [friends, setFriends] = useState([]); // ✨ Track accepted friends
+    const [pendingRequests, setPendingRequests] = useState([]); 
+    const [friends, setFriends] = useState([]); 
     const [loading, setLoading] = useState(false);
     
-    // ✨ IDENTITY SYNC
+    // ✨ MEDIA DATA (For Songs and Filters Search)
+    const [songs] = useState([
+        { title: "Midnight City", artist: "M83", type: "song" },
+        { title: "Neon Lights", artist: "Nexus AI", type: "song" },
+        { title: "Solar Wind", artist: "Astro", type: "song" }
+    ]);
+
+    const [studioFilters] = useState([
+        { title: "Grayscale", type: "filter" },
+        { title: "Sepia", type: "filter" },
+        { title: "Neon Purple", type: "filter" },
+        { title: "Retro Invert", type: "filter" }
+    ]);
+
     const myId = localStorage.getItem('myId');
     const myUsername = localStorage.getItem('username') || "Guest";
     const navigate = useNavigate();
 
-    // Load all data on mount
     useEffect(() => {
         if (myId) {
             fetchSuggestions();
@@ -26,14 +39,10 @@ const Search = () => {
     const fetchPendingRequests = async () => {
         if (!myId) return;
         try {
-            // Fetch users who have sent YOU a follow request
             const res = await fetch(`http://localhost:5001/api/auth/pending-requests?myId=${myId}`);
             const data = await res.json();
-            // Expecting array of populated User objects
             setPendingRequests(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error('Failed to load pending requests:', err);
-        }
+        } catch (err) { console.error('Pending requests fail:', err); }
     };
 
     const fetchFriends = async () => {
@@ -41,11 +50,8 @@ const Search = () => {
         try {
             const res = await fetch(`http://localhost:5001/api/auth/friends-list?myId=${myId}`);
             const data = await res.json();
-            // Expecting array of populated User objects
             setFriends(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error('Failed to load friends list:', err);
-        }
+        } catch (err) { console.error('Friends list fail:', err); }
     };
 
     const handleRequestAction = async (targetId, action) => {
@@ -53,22 +59,16 @@ const Search = () => {
             const res = await fetch(`http://localhost:5001/api/auth/handle-request`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ myId, targetId, action }) // action is 'accept' or 'reject'
+                body: JSON.stringify({ myId, targetId, action })
             });
             const data = await res.json();
             if (data.success) {
-                alert(`Request ${action}ed successfully!`);
-                
-                // ✨ UI AUTO-REFRESH: Update local state immediately
+                alert(`Request ${action}ed!`);
                 setPendingRequests(prev => prev.filter(req => req._id !== targetId));
-                
-                // Re-fetch lists to ensure data consistency
                 fetchFriends();
                 fetchSuggestions();
             }
-        } catch (err) {
-            alert("Error handling request");
-        }
+        } catch (err) { alert("Error handling request"); }
     };
 
     const fetchSuggestions = async () => {
@@ -78,68 +78,53 @@ const Search = () => {
                 : `http://localhost:5001/api/auth/suggestions`;
             const res = await fetch(url);
             const data = await res.json();
-            
             if (Array.isArray(data)) {
-                // Ensure current user is filtered out of suggestions
                 setSuggestions(data.filter(user => user.name !== myUsername));
             }
-        } catch (err) {
-            console.error('Suggestion Error', err);
-            setSuggestions([]);
-        }
+        } catch (err) { setSuggestions([]); }
     };
 
+    // ✨ UPDATED SEARCH LOGIC
     const handleSearch = async (e) => {
         const value = e.target.value;
         setQuery(value);
         
         if (value.trim().length > 0) {
-            setLoading(true);
-            try {
-                // Trim search value for matching reliability
-                const res = await fetch(`http://localhost:5001/api/auth/search?name=${encodeURIComponent(value.trim())}&myId=${myId}`);
-                const data = await res.json();
-                
-                if (Array.isArray(data)) {
-                    // Filter out yourself from search results
-                    setResults(data.filter(user => user.name !== myUsername));
-                } else {
-                    setResults([]);
-                }
-            } catch (err) {
-                setResults([]);
+            if (searchType === "people") {
+                setLoading(true);
+                try {
+                    const res = await fetch(`http://localhost:5001/api/auth/search?name=${encodeURIComponent(value.trim())}&myId=${myId}`);
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        setResults(data.filter(user => user.name !== myUsername));
+                    }
+                } catch (err) { setResults([]); }
+                setLoading(false);
+            } else if (searchType === "songs") {
+                setResults(songs.filter(s => s.title.toLowerCase().includes(value.toLowerCase())));
+            } else if (searchType === "filters") {
+                setResults(studioFilters.filter(f => f.title.toLowerCase().includes(value.toLowerCase())));
             }
-            setLoading(false);
         } else {
             setResults([]);
         }
     };
 
     const sendRequest = async (targetId, targetName) => {
-        const currentMyId = localStorage.getItem('myId');
-        if (!currentMyId) {
-            alert("Session error: Please log out and log back in to refresh your ID.");
-            return;
-        }
-
+        if (!myId) return alert("Session error");
         try {
             const res = await fetch(`http://localhost:5001/api/auth/add-friend/${targetId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ myId: currentMyId })
+                body: JSON.stringify({ myId })
             });
             const data = await res.json();
             if (data.success) {
-                alert(`Follow request sent to @${targetName}! 🚀`);
-                // UI Update: Remove from results/suggestions once followed
+                alert(`Follow request sent to @${targetName}!`);
                 setResults(prev => prev.filter(u => u._id !== targetId));
                 setSuggestions(prev => prev.filter(u => u._id !== targetId));
-            } else {
-                alert(data.msg || "Action failed");
             }
-        } catch (err) {
-            alert("Error sending request. Check server connection.");
-        }
+        } catch (err) { alert("Server error"); }
     };
 
     const startDM = (targetName) => navigate(`/chat?dm=${encodeURIComponent(targetName)}`);
@@ -155,11 +140,7 @@ const Search = () => {
                             <div className="d-flex flex-wrap gap-3">
                                 {pendingRequests.map(req => (
                                     <div key={req._id} className="d-flex align-items-center gap-3 p-2 rounded-pill bg-dark border border-secondary shadow">
-                                        <img 
-                                            src={req.avatar || `https://ui-avatars.com/api/?name=${req.name}`} 
-                                            alt="user" 
-                                            style={{ width: '35px', height: '35px', borderRadius: '50%', border: '1px solid #a855f7' }} 
-                                        />
+                                        <img src={req.avatar || `https://ui-avatars.com/api/?name=${req.name}`} alt="user" style={{ width: '35px', height: '35px', borderRadius: '50%', border: '1px solid #a855f7' }} />
                                         <span className="text-white fw-bold">@{req.name}</span>
                                         <div className="d-flex gap-1">
                                             <button className="btn btn-sm btn-success rounded-circle" onClick={() => handleRequestAction(req._id, 'accept')}>✓</button>
@@ -174,35 +155,54 @@ const Search = () => {
             )}
 
             <div className="row">
-                {/* 🔍 SEARCH RESULTS COLUMN */}
+                {/* 🔍 SEARCH COLUMN */}
                 <div className="col-md-6 mb-4">
                     <div className="card p-4 shadow-lg" style={{ background: 'rgba(18, 18, 27, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px' }}>
-                        <h5 className="text-white mb-3">🔍 Find Nexus Users</h5>
+                        
+                        {/* Search Category Toggle */}
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h5 className="text-white mb-0">🔍 Global Search</h5>
+                            <div className="btn-group btn-group-sm">
+                                <button className={`btn btn-outline-info ${searchType === 'people' ? 'active' : ''}`} onClick={() => setSearchType('people')}>People</button>
+                                <button className={`btn btn-outline-info ${searchType === 'songs' ? 'active' : ''}`} onClick={() => setSearchType('songs')}>Songs</button>
+                                <button className={`btn btn-outline-info ${searchType === 'filters' ? 'active' : ''}`} onClick={() => setSearchType('filters')}>Filters</button>
+                            </div>
+                        </div>
+
                         <input 
                             type="text" 
                             className="form-control mb-3" 
                             style={{ background: '#27272a', color: 'white', border: 'none' }} 
-                            placeholder="Search your friends..." 
+                            placeholder={`Search ${searchType}...`}
                             value={query} 
                             onChange={handleSearch} 
                         />
                         
-                        <div className="list-group">
+                        <div className="list-group" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                             {loading ? <div className="text-muted">Searching Nexus...</div> : 
-                             results.length > 0 ? results.map(user => (
-                                <div key={user._id} className="d-flex justify-content-between align-items-center p-2 mb-2" style={{ background: '#18181b', borderRadius: '8px', border: '1px solid #333' }}>
+                             results.length > 0 ? results.map((item, idx) => (
+                                <div key={item._id || idx} className="d-flex justify-content-between align-items-center p-2 mb-2" style={{ background: '#18181b', borderRadius: '8px', border: '1px solid #333' }}>
                                     <div className="d-flex align-items-center gap-2">
                                         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(45deg, #a855f7, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
-                                            {user.name ? user.name.charAt(0).toUpperCase() : '?'}
+                                            {(item.name || item.title || "?").charAt(0).toUpperCase()}
                                         </div>
-                                        <div className="text-white fw-bold">@{user.name}</div>
+                                        <div>
+                                            <div className="text-white fw-bold">{item.name ? `@${item.name}` : item.title}</div>
+                                            {item.artist && <small className="text-muted">{item.artist}</small>}
+                                        </div>
                                     </div>
                                     <div className="d-flex gap-2">
-                                        <button onClick={() => sendRequest(user._id, user.name)} className="btn btn-sm btn-primary">Follow</button>
-                                        <button onClick={() => startDM(user.name)} className="btn btn-sm btn-outline-light">💬</button>
+                                        {searchType === "people" ? (
+                                            <>
+                                                <button onClick={() => sendRequest(item._id, item.name)} className="btn btn-sm btn-primary">Follow</button>
+                                                <button onClick={() => startDM(item.name)} className="btn btn-sm btn-outline-light">💬</button>
+                                            </>
+                                        ) : (
+                                            <button onClick={() => navigate(searchType === "songs" ? "/jukebox" : "/studio")} className="btn btn-sm btn-info">Go to {searchType === "songs" ? "Player" : "Studio"}</button>
+                                        )}
                                     </div>
                                 </div>
-                            )) : query.length > 0 && <div className="text-muted text-center">User "{query}" not found.</div>}
+                            )) : query.length > 0 && <div className="text-muted text-center">Nothing found for "{query}"</div>}
                         </div>
                     </div>
                 </div>
@@ -216,11 +216,7 @@ const Search = () => {
                                 {suggestions.map(user => (
                                     <div key={user._id} className="d-flex justify-content-between align-items-center p-3 mb-2" style={{ background: '#18181b', borderRadius: '12px', border: '1px solid #333' }}>
                                         <div className="d-flex align-items-center gap-3">
-                                            <img 
-                                                src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} 
-                                                alt={user.name} 
-                                                style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #a855f7' }} 
-                                            />
+                                            <img src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} alt={user.name} style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #a855f7' }} />
                                             <div className="text-white fw-bold">@{user.name}</div>
                                         </div>
                                         <div className="d-flex gap-2">
@@ -236,7 +232,7 @@ const Search = () => {
                     </div>
                 </div>
             </div>
-
+          
             {/* 👫 FRIENDS LIST SECTION */}
             <div className="row mt-2">
                 <div className="col-12">
