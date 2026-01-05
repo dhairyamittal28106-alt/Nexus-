@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+
+/* 🌑 1. FORCE THE ENTIRE BACKGROUND TO BE PITCH BLACK */
+html, body, #root, .App {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+  background-color: #000000 !important; /* Pitch Black */
+  color: #ffffff !important;
+  overflow-x: hidden;
+}
+
+/* 🌑 2. FIX INVISIBLE DETAILS (THE MAIN ERROR) */
+.form-control {
+  background-color: #1a1a1c !important; /* Slightly lighter black for the box */
+  border: 1px solid #333335 !important; /* Subtle border so you see the box */
+  color: #ffffff !important;           /* BRIGHT WHITE TEXT FOR TYPING */
+  border-radius: 12px !important;
+  padding: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* This fixes the placeholder text (Name, Email, Phone) visibility */
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* When you click into a box to type */
+.form-control:focus {
+  background-color: #202022 !important;
+  border-color: #6366f1 !important; /* Purple/Blue glow */
+  color: #ffffff !important;        /* Ensure typing remains white */
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3) !important;
+  outline: none;
+}
+
+/* 🔳 3. DARK CARDS FOR JOIN NEXUS & SQUAD PORTAL */
+.card {
+  background-color: #0d0d0e !important;
+  border: 1px solid #1f1f21 !important;
+  border-radius: 24px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 1) !important;
+}
+
+/* 🟣 4. NEON GRADIENT BUTTONS */
+.btn-primary {
+  background: linear-gradient(90deg, #6366f1, #a855f7) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  transition: transform 0.2s ease;
+}
+
+.btn-primary:hover {
+  transform: scale(1.02);
+}
+
+/* 🔍 5. NAVBAR SEARCH VISIBILITY */
+.navbar input {
+  background-color: #1a1a1c !important;
+  color: white !important;
+  border: 1px solid #333 !important;
+}
