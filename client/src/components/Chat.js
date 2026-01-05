@@ -21,7 +21,13 @@ function Chat() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
-  // ✨ NEW FEATURES STATES
+  // ✨ RECENT CHATS STATE (Persisted in LocalStorage)
+  const [recentChats, setRecentChats] = useState(() => {
+    const saved = localStorage.getItem("recent_nexus_chats");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // ✨ REPLY & REACTION STATES
   const [replyTo, setReplyTo] = useState(null);
   const [reactions, setReactions] = useState({});
 
@@ -49,15 +55,13 @@ function Chat() {
       });
       if (data.author !== username) {
         socket.emit("message_seen", { room: data.room, id: data.id, viewer: username });
+        // ✨ Add sender to recent chats automatically when message received
+        addToRecent(data.author);
       }
     });
 
-    // ✨ RECEIVE REACTION
     socket.on("update_reaction", ({ messageId, emoji, user }) => {
-      setReactions(prev => ({
-        ...prev,
-        [messageId]: { emoji, user }
-      }));
+      setReactions(prev => ({ ...prev, [messageId]: { emoji, user } }));
     });
 
     socket.on("display_typing", (data) => setTypingStatus(`${data.user} is typing...`));
@@ -85,7 +89,23 @@ function Chat() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messageList, typingStatus]);
 
+  // ✨ HELPER: Add to Recent Missions List
+  const addToRecent = (name) => {
+    setRecentChats(prev => {
+      const filtered = prev.filter(n => n !== name);
+      const updated = [name, ...filtered].slice(0, 8); // Store last 8
+      localStorage.setItem("recent_nexus_chats", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const createRoom = () => {
+    const newRoom = Math.random().toString(36).substring(2, 8).toUpperCase();
+    setRoom(newRoom);
+  };
+
   const startDmWith = async (peerName) => {
+    addToRecent(peerName); // Update Recent Missions UI
     const peer = onlineUsers.find(u => u.name === peerName);
     let peerId = peer ? peer.userId : null;
     if (!peerId) {
@@ -116,17 +136,12 @@ function Chat() {
           author: m.sender === myId ? username : peerName,
           message: m.text,
           image: m.image,
-          replyTo: m.replyTo, 
+          replyTo: m.replyTo,
           time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }));
         setMessageList(formattedHistory);
       }
     } catch (err) { console.error("History fetch failed:", err); }
-  };
-
-  const createRoom = () => {
-    const newRoom = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setRoom(newRoom);
   };
 
   const joinRoom = (targetRoom, targetId = null, peerName = null) => {
@@ -189,7 +204,6 @@ function Chat() {
     setReplyTo(null); 
   };
 
-  // ✨ HANDLE REACTION CLICK
   const handleReaction = (messageId, emoji) => {
     socket.emit("send_reaction", { room, messageId, emoji, user: username });
     setReactions(prev => ({ ...prev, [messageId]: { emoji, user: username } }));
@@ -239,6 +253,7 @@ function Chat() {
         .reaction-chip { background: #333; border-radius: 12px; padding: 1px 6px; font-size: 0.7rem; position: absolute; bottom: -10px; border: 1px solid #555; }
         .reaction-picker { background: #222; border-radius: 20px; padding: 5px; display: none; position: absolute; top: -35px; left: 0; z-index: 10; border: 1px solid #444; }
         .message-wrapper:hover .reaction-picker { display: flex; gap: 8px; }
+        .recent-item:hover { background: #27272a !important; cursor: pointer; transition: 0.2s; }
       `}</style>
 
       {!showChat ? (
@@ -263,11 +278,25 @@ function Chat() {
           <div className="col-md-6 mb-4">
             <div className="card p-4 h-100 shadow-lg" style={{ background: '#18181b', border: '1px solid #333' }}>
               <h4 className="text-white mb-4">Online Now 🟢</h4>
-              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <div className="mb-4" style={{ maxHeight: '160px', overflowY: 'auto' }}>
                 {onlineUsers.length === 0 ? <p className="text-muted">Waiting for others...</p> : onlineUsers.map(u => (
-                  <div key={u.userId} className="user-item d-flex justify-content-between align-items-center mb-2 p-2 rounded" style={{ background: '#27272a' }}>
+                  <div key={u.userId} className="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style={{ background: '#27272a' }}>
                     <span className="text-white">@{u.name}</span>
                     <button className="btn btn-sm btn-outline-light" onClick={() => startDmWith(u.name)}>DM</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* ✨ RECENT MISSIONS SECTION */}
+              <h5 className="text-white mb-3" style={{ borderTop: '1px solid #333', paddingTop: '15px' }}>Recent Missions 🕒</h5>
+              <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                {recentChats.length === 0 ? <p className="text-muted small">No recent activity</p> : recentChats.map(name => (
+                  <div key={name} onClick={() => startDmWith(name)} className="recent-item d-flex align-items-center mb-2 p-2 rounded" style={{ background: '#1e1e21' }}>
+                    <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3" style={{ width: '35px', height: '35px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      {name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-white">@{name}</span>
+                    <small className="ms-auto text-muted" style={{ fontSize: '0.6rem' }}>Open Chat →</small>
                   </div>
                 ))}
               </div>
@@ -298,8 +327,6 @@ function Chat() {
           <div className="card-body bg-black" ref={scrollRef} style={{ overflowY: 'scroll', display: 'flex', flexDirection: 'column' }}>
             {messageList.map((msg, i) => (
               <div key={i} className={`d-flex mb-4 message-wrapper ${msg.author === username ? "justify-content-end" : "justify-content-start"}`} style={{ position: 'relative' }}>
-                
-                {/* ✨ REACTION PICKER (HOVER) */}
                 <div className="reaction-picker">
                   {reactionEmojis.map(emoji => (
                     <span key={emoji} style={{ cursor: 'pointer' }} onClick={() => handleReaction(msg.id, emoji)}>{emoji}</span>
@@ -312,7 +339,6 @@ function Chat() {
                     <span style={{ cursor: 'pointer' }} onClick={() => setReplyTo(msg)}>↩️</span>
                   </div>
 
-                  {/* ✨ REPLY CONTEXT */}
                   {msg.replyTo && (
                     <div className="bubble-reply text-truncate">
                       <strong>@{msg.replyTo.author}:</strong> {msg.replyTo.message || "📷 Media"}
@@ -337,7 +363,6 @@ function Chat() {
                     )}
                   </div>
 
-                  {/* ✨ DISPLAY REACTION */}
                   {reactions[msg.id] && (
                     <div className="reaction-chip" title={`By ${reactions[msg.id].user}`}>
                       {reactions[msg.id].emoji}
@@ -350,10 +375,9 @@ function Chat() {
           </div>
 
           <div className="card-footer bg-dark border-top border-secondary">
-            {/* ✨ REPLY PREVIEW BAR */}
             {replyTo && (
               <div className="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-secondary" style={{ fontSize: '0.8rem' }}>
-                <div className="text-truncate">Replying to <strong>@{replyTo.author}</strong></div>
+                <div className="text-truncate text-white">Replying to <strong>@{replyTo.author}</strong></div>
                 <button className="btn btn-sm text-white" onClick={() => setReplyTo(null)}>✖</button>
               </div>
             )}
