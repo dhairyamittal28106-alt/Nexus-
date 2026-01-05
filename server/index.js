@@ -3,28 +3,76 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const cloudinary = require('cloudinary').v2;
+// ✨ MUST BE AT THE VERY TOP to load environment variables first
+require('dotenv').config(); 
+
 const Message = require('./models/Message');
-require('dotenv').config();
+const User = require('./models/User');
 
 const app = express();
 const server = http.createServer(app);
+
+// ✨ UPDATED: Matching your specific .env variable names exactly
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+  secure: true
+});
+
+// ✨ Debug Log: Check your terminal to confirm keys are loading
+console.log("☁️ Cloudinary Check:", process.env.API_KEY ? "Credentials Loaded" : "MISSING KEYS");
 
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST', 'DELETE', 'PUT'] }
 });
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'DELETE', 'PUT'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'DELETE', 'PUT'] }));
 app.use(express.json({ limit: '200mb' }));
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "Nexus Server Active" }));
 
-// Routes
+// ✨ Dedicated Cloudinary Upload Route for Chat Images
+app.post("/api/messages/upload", async (req, res) => {
+    try {
+        if (!req.body.data) return res.status(400).json({ error: "No image data provided" });
+        
+        const fileStr = req.body.data;
+        const uploadResponse = await cloudinary.uploader.upload(fileStr, {
+            folder: "nexus_chat_images",
+        });
+        res.json({ url: uploadResponse.secure_url });
+    } catch (err) {
+        console.error("❌ Cloudinary Error:", err);
+        res.status(500).json({ error: "Upload failed" });
+    }
+});
+
+// ✨ Delete History Route
+app.delete("/api/messages/history/:myId/:targetId", async (req, res) => {
+    try {
+        const { myId, targetId } = req.params;
+        await Message.deleteMany({
+            $or: [
+                { sender: myId, receiver: targetId },
+                { sender: targetId, receiver: myId }
+            ]
+        });
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ✨ User Lookup Route (For Offline Identity)
+app.get("/api/auth/user/:name", async (req, res) => {
+    try {
+        const user = await User.findOne({ name: req.params.name });
+        res.json(user || {});
+    } catch (err) { res.status(500).json({}); }
+});
+
+// Other Routes
 app.use("/api/posts", require("./routes/posts"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/ai", require("./routes/ai"));
@@ -61,25 +109,23 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (data) => {
     console.log("📩 SOCKET PAYLOAD:", data.author, "sending to ID:", data.receiverId);
 
-    // ✨ FIX: Flexible validation for room and IDs
-    if (!data?.senderId || !data?.receiverId || !data?.message) {
-      console.log("❌ MESSAGE BLOCKED — missing sender/receiver IDs");
-      return;
+    if (!data?.senderId || !data?.receiverId) {
+       console.log("❌ MESSAGE BLOCKED — missing sender/receiver IDs");
+       return;
     }
 
     try {
-      // Save to MongoDB
       const newMessage = new Message({
         sender: String(data.senderId),
         receiver: String(data.receiverId),
         text: String(data.message),
+        image: data.image, // ✨ Storing the Cloudinary URL
         timestamp: new Date()
       });
 
       const savedMessage = await newMessage.save();
       console.log("✅ MESSAGE SAVED TO ATLAS:", savedMessage._id);
 
-      // Broadcast to room
       const broadcastData = {
         ...data,
         id: savedMessage._id.toString(),
@@ -89,7 +135,6 @@ io.on('connection', (socket) => {
       };
 
       io.to(data.room).emit('receive_message', broadcastData);
-      
     } catch (err) {
       console.error("❌ DB SAVE ERROR:", err.message);
     }
@@ -103,14 +148,17 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     onlineUsers = onlineUsers.filter(u => u.socketId !== socket.id);
     io.emit('update_user_list', onlineUsers);
+    console.log('🔴 Socket disconnected', socket.id);
   });
 });
 
 // ================= DATABASE =================
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("🔥 MongoDB Connected"))
+  .then(() => console.log("🔥 MongoDB Active"))
   .catch(err => console.log("❌ MongoDB Error:", err.message));
 
-const PORT = 5001;
-server.listen(PORT, () => console.log(`🚀 Server on Port ${PORT}`));
+const PORT = process.env.PORT || 5001;
+server.listen(PORT, () => {
+    console.log(`🚀 Server on Port ${PORT}`);
+});
