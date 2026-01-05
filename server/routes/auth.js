@@ -162,7 +162,19 @@ router.get('/friends-list', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch friends list" });
     }
 });
-
+// ✨ REQUIRED for Offline Messaging
+router.get("/user/:name", async (req, res) => {
+    try {
+        const user = await User.findOne({ name: req.params.name });
+        if (user) {
+            res.json({ _id: user._id });
+        } else {
+            res.status(404).json({ error: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // 💡 SUGGESTIONS: Mutual Friends & Newest Members
 router.get('/suggestions', async (req, res) => {
     try {

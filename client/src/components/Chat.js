@@ -12,7 +12,7 @@ function Chat() {
   const [copySuccess, setCopySuccess] = useState("");
   const [phone, setPhone] = useState("");
   const [activeTarget, setActiveTarget] = useState(null);
-  const [activeTargetId, setActiveTargetId] = useState(null); // ✨ NEW: Track ID for DB query
+  const [activeTargetId, setActiveTargetId] = useState(null); 
   const [showStickers, setShowStickers] = useState(false);
   
   const [typingStatus, setTypingStatus] = useState("");
@@ -20,14 +20,14 @@ function Chat() {
   
   const scrollRef = useRef(null);
   const username = localStorage.getItem('username') || "Anonymous";
-  const myId = localStorage.getItem('myId'); // ✨ NEW: Current user's DB ID
+  const myId = localStorage.getItem('myId'); 
   const stickers = ["🔥", "😂", "😍", "😎", "🥳", "🤯", "👀", "🙏", "💀", "🚀"];
 
   useEffect(() => {
+    // Sync identity with socket server
     socket.emit("user_online", { name: username, userId: myId });
 
     socket.on("update_user_list", (users) => {
-      // Store full user objects to get IDs for DMing
       setOnlineUsers(users.filter(u => u.name !== username));
     });
 
@@ -69,8 +69,7 @@ function Chat() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messageList, typingStatus]);
 
-  // ✨ NEW: Fetch messages from MongoDB history
-  const fetchChatHistory = async (targetId) => {
+  const fetchChatHistory = async (targetId, currentRoom, peerName) => {
     if (!myId || !targetId) return;
     try {
       const res = await fetch(`http://localhost:5001/api/messages/${myId}/${targetId}`);
@@ -78,11 +77,10 @@ function Chat() {
       if (Array.isArray(data)) {
         const formattedHistory = data.map(m => ({
           id: m._id,
-          room: room,
-          author: m.sender === myId ? username : activeTarget,
+          room: currentRoom,
+          author: m.sender === myId ? username : peerName,
           message: m.text,
-          time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isHistory: true
+          time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }));
         setMessageList(formattedHistory);
       }
@@ -93,44 +91,64 @@ function Chat() {
 
   const createRoom = () => setRoom(Math.random().toString(36).substring(2, 8).toUpperCase());
 
-  const joinRoom = (targetRoom, targetId = null) => {
+  const joinRoom = (targetRoom, targetId = null, peerName = null) => {
     const finalRoom = targetRoom || room;
     if (finalRoom !== "") {
       socket.emit("join_room", finalRoom);
       setRoom(finalRoom);
       setShowChat(true);
       setMessageList([]);
-      if (targetId) fetchChatHistory(targetId); // Load history if it's a DM
+      if (targetId) fetchChatHistory(targetId, finalRoom, peerName); 
     }
   };
 
-  const startDmWith = (peerName) => {
-    // Find user ID from onlineUsers list
+  // ✨ UPDATED: Logic to find receiverId even if offline
+  const startDmWith = async (peerName) => {
     const peer = onlineUsers.find(u => u.name === peerName);
-    const peerId = peer ? peer.userId : null;
+    let peerId = peer ? peer.userId : null;
     
-    const dmId = ["DM", username, peerName].sort().join("_");
-    setActiveTarget(peerName);
-    setActiveTargetId(peerId);
-    joinRoom(dmId, peerId);
+    // IF OFFLINE: Fetch real ObjectID from backend
+    if (!peerId) {
+      console.log(`🔍 Recipient ${peerName} offline. Querying database for ID...`);
+      try {
+        const res = await fetch(`http://localhost:5001/api/auth/user/${peerName}`);
+        const data = await res.json();
+        if (data._id) peerId = data._id;
+      } catch (err) {
+        console.error("Database lookup failed for user ID.");
+      }
+    }
+
+    if (peerId && myId) {
+        // ✨ Generate consistent ID-based room name
+        const dmId = ["DM", myId, peerId].sort().join("_");
+        setActiveTarget(peerName);
+        setActiveTargetId(peerId); // Critical: This removes the "null" in terminal
+        joinRoom(dmId, peerId, peerName);
+    } else {
+        // Fallback for custom rooms
+        const dmId = ["DM", username, peerName].sort().join("_");
+        setActiveTarget(peerName);
+        joinRoom(dmId);
+    }
   };
 
   const sendMessage = async () => {
-    if (!currentMessage || !room) return;
+    if (!currentMessage || !room || !activeTargetId) return;
     socket.emit("stop_typing", { room });
 
     const data = {
       id: username + Date.now(),
       room: String(room),
       author: String(username),
-      senderId: myId, // ✨ Required for DB storage
-      receiverId: activeTargetId, // ✨ Required for DB storage
+      senderId: myId, 
+      receiverId: activeTargetId, 
       message: String(currentMessage),
       time: String(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     };
 
     await socket.emit("send_message", data);
-    setMessageList((list) => [...list, data]);
+    //setMessageList((list) => [...list, data]);
     setCurrentMessage("");
   };
 
@@ -144,8 +162,8 @@ function Chat() {
   };
 
   const sendSticker = (sticker) => {
+    if (!room || !activeTargetId) return;
     setShowStickers(false);
-    if (!room) return;
     const data = {
       id: username + Date.now(),
       room: String(room),
@@ -156,7 +174,7 @@ function Chat() {
       time: String(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     };
     socket.emit("send_message", data);
-    setMessageList((list) => [...list, data]);
+    //setMessageList((list) => [...list, data]);
   };
 
   const sendWhatsApp = () => {
@@ -196,7 +214,7 @@ function Chat() {
               <h4 className="text-white mb-4">Online Now 🟢</h4>
               <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                 {onlineUsers.length === 0 ? <p className="text-muted">Waiting for others...</p> : onlineUsers.map(u => (
-                  <div key={u.id} className="user-item d-flex justify-content-between align-items-center mb-2 p-2 rounded" style={{ background: '#27272a' }}>
+                  <div key={u.userId} className="user-item d-flex justify-content-between align-items-center mb-2 p-2 rounded" style={{ background: '#27272a' }}>
                     <span className="text-white">@{u.name}</span>
                     <button className="btn btn-sm btn-outline-light" onClick={() => startDmWith(u.name)}>DM</button>
                   </div>

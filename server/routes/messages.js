@@ -1,34 +1,26 @@
-const express = require('express');
-const router = express.Router();
+const router = require('express').Router();
 const Message = require('../models/Message');
 
-// 📩 GET messages between two specific users
-router.get('/:myId/:targetId', async (req, res) => {
-    try {
-        const { myId, targetId } = req.params;
-        // Find messages where (I am sender AND he is receiver) OR (He is sender AND I am receiver)
-        const messages = await Message.find({
-            $or: [
-                { sender: myId, receiver: targetId },
-                { sender: targetId, receiver: myId }
-            ]
-        }).sort({ timestamp: 1 });
-        res.json(messages);
-    } catch (err) {
-        res.status(500).json({ error: "Failed to load chat" });
-    }
-});
-
-// 📤 SEND a new message
-router.post('/send', async (req, res) => {
-    try {
-        const { sender, receiver, text } = req.body;
-        const newMessage = new Message({ sender, receiver, text });
-        await newMessage.save();
-        res.json(newMessage);
-    } catch (err) {
-        res.status(500).json({ error: "Failed to send message" });
-    }
+// GET chat history between two users
+router.get('/:userId/:peerId', async (req, res) => {
+  try {
+    const { userId, peerId } = req.params;
+    
+    console.log(`📜 API: Fetching messages between ${userId} and ${peerId}`);
+    
+    const messages = await Message.find({
+      $or: [
+        { sender: userId, receiver: peerId },
+        { sender: peerId, receiver: userId }
+      ]
+    }).sort({ timestamp: 1 });
+    
+    console.log(`✅ Found ${messages.length} messages`);
+    res.json(messages);
+  } catch (err) {
+    console.error('❌ History fetch error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
