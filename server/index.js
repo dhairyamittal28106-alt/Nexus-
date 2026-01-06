@@ -29,7 +29,7 @@ const io = new Server(server, {
 
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'DELETE', 'PUT'] }));
 
-// Support for HD renders & Large Chat Images
+// Support for HD renders & Large Chat Images - Ensuring limits are set for 2026 standards
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ limit: '200mb', extended: true }));
 
@@ -112,10 +112,10 @@ app.use("/api/posts", require("./routes/posts"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/messages", require("./routes/messages"));
 
-// ================= SOCKET LOGIC (DIRECT RINGING UPDATED) =================
+// ================= SOCKET LOGIC (SQUAD PORTAL & DIRECT CALLING FIXED) =================
 
 let onlineUsers = [];
-const userSocketMap = new Map(); // Store userId -> socketId
+const userSocketMap = new Map(); // Store userId -> socketId for direct calling
 
 io.on('connection', (socket) => {
   console.log('🟢 Socket connected', socket.id);
@@ -128,7 +128,7 @@ io.on('connection', (socket) => {
     io.emit('update_user_list', onlineUsers);
   });
 
-  // ✨ INITIATE DIRECT RING
+  // ✨ INITIATE DIRECT RING (SIREN PROTOCOL)
   socket.on('initiate_call', ({ targetUserId, callerName, callType, roomID }) => {
     const receiverSocketId = userSocketMap.get(targetUserId);
     if (receiverSocketId) {
@@ -146,25 +146,43 @@ io.on('connection', (socket) => {
 
   socket.on('stop_typing', (data) => { socket.to(data.room).emit('hide_typing', data); });
 
+  // ================= FIXED SEND_MESSAGE LOGIC =================
   socket.on('send_message', async (data) => {
-    if (!data?.senderId || !data?.receiverId) return;
+    if (!data || !data.room) return;
+
     try {
-      const newMessage = new Message({
-        sender: String(data.senderId),
-        receiver: String(data.receiverId),
-        text: String(data.message),
-        image: data.image,
-        replyTo: data.replyTo, 
-        timestamp: new Date()
-      });
-      const savedMessage = await newMessage.save();
+      // Logic: Save to MongoDB only if it's a valid Private DM
+      // Squad Portal messages use "ROOM_MSG" which crashes MongoDB BSON validation
+      if (data.receiverId && data.receiverId !== "ROOM_MSG" && data.receiverId.length === 24) {
+        const newMessage = new Message({
+          sender: String(data.senderId),
+          receiver: String(data.receiverId),
+          text: String(data.message),
+          image: data.image,
+          replyTo: data.replyTo, 
+          timestamp: new Date()
+        });
+
+        const savedMessage = await newMessage.save();
+        data.id = savedMessage._id.toString();
+      } else {
+        // If it's a Squad Portal message, assign a transient Virtual ID
+        data.id = "SQUAD_" + Date.now();
+      }
+
+      // Live Broadcast to the room (Handles both Squad Rooms and DM Rooms)
       const broadcastData = {
         ...data,
-        id: savedMessage._id.toString(),
-        time: new Date(savedMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      io.to(data.room).emit('receive_message', broadcastData);
-    } catch (err) { console.error("❌ DB SAVE ERROR:", err.message); }
+
+      io.to(String(data.room)).emit('receive_message', broadcastData);
+
+    } catch (err) {
+      console.error("❌ DB SAVE ERROR:", err.message);
+      // Fallback: Broadcast even if DB fails so UI doesn't freeze
+      io.to(String(data.room)).emit('receive_message', data);
+    }
   });
 
   socket.on('send_reaction', (data) => { if (data.room) socket.to(data.room).emit('update_reaction', data); });
@@ -202,19 +220,26 @@ app.get("/api/music/search", async (req, res) => {
             return res.json(results);
         }
 
-        res.json([{ title: `${q} (System Mix)`, artist: "Nexus Node", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400" }]);
+        res.json([{ 
+            title: `${q} (System Mix)`, 
+            artist: "Nexus Node", 
+            url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", 
+            cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400" 
+        }]);
+
     } catch (err) {
         console.error("❌ MUSIC HUB ERROR:", err.message);
         res.status(500).json({ error: "API unreachable" });
     }
 });
 
-// ================= DATABASE =================
+// ================= DATABASE CONNECTION =================
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("🔥 MongoDB Active - Nexus 2026 Core"))
+  .then(() => console.log("🔥 MongoDB Active - Nexus 2026 Core Engine Connected"))
   .catch(err => console.log("❌ MongoDB Error:", err.message));
 
+// Server Initialization
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
-    console.log(`🚀 Server on Port ${PORT} - READY FOR BIG 2026`);
+    console.log(`🚀 Server on Port ${PORT} - READY FOR BIG 2026 LAUNCH`);
 });
