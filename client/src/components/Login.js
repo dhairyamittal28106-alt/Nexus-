@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from "../config";
+
 const Login = () => {
     const [creds, setCreds] = useState({ email: "", password: "" });
     const navigate = useNavigate();
@@ -8,21 +9,20 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch("${BACKEND_URL}/api/auth/login", {
+            // ✅ FIXED: Changed " " to ` ` so the BACKEND_URL variable actually works
+            const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(creds)
             });
             const json = await response.json();
             
-            // ✨ DEBUG: Check this in your browser console
             console.log("Server Response:", json); 
 
             if (json.success) {
-                // Save everything to storage
                 localStorage.setItem('token', json.authToken);
                 localStorage.setItem('username', json.username);
-                localStorage.setItem('myId', json.myId); // ✨ CRITICAL LINE
+                localStorage.setItem('myId', json.myId); 
 
                 if (json.streak) {
                     localStorage.setItem('streak', json.streak);
@@ -36,7 +36,8 @@ const Login = () => {
             }
         } catch (error) {
             console.error("Login error:", error);
-            alert("Check if server is running on Port 5001");
+            // This alert triggers if the URL is wrong or server is down
+            alert("Connection Error: Check your BACKEND_URL in config.js");
         }
     }
 
