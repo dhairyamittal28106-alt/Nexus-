@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import io from "socket.io-client";
-
-const socket = io.connect("http://localhost:5001");
+import { BACKEND_URL } from "../config";
+const socket = io.connect("${BACKEND_URL}");
 
 function Chat() {
   const [room, setRoom] = useState("");
@@ -105,7 +105,7 @@ function Chat() {
     let peerId = peer ? peer.userId : null;
     if (!peerId) {
       try {
-        const res = await fetch(`http://localhost:5001/api/auth/user/${peerName}`);
+        const res = await fetch(`${BACKEND_URL}/api/auth/user/${peerName}`);
         const data = await res.json();
         if (data._id) peerId = data._id;
       } catch (err) { console.error("DB lookup failed"); }
@@ -122,7 +122,7 @@ function Chat() {
   const fetchChatHistory = async (targetId, currentRoom, peerName) => {
     if (!myId || !targetId) return;
     try {
-      const res = await fetch(`http://localhost:5001/api/messages/${myId}/${targetId}`);
+      const res = await fetch(`${BACKEND_URL}/api/messages/${myId}/${targetId}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         const formattedHistory = data.map(m => ({
@@ -165,7 +165,7 @@ function Chat() {
     reader.onloadend = async () => {
       try {
         setUploadProgress(50);
-        const response = await fetch("http://localhost:5001/api/messages/upload", {
+        const response = await fetch("${BACKEND_URL}/api/messages/upload", {
           method: "POST", body: JSON.stringify({ data: reader.result }), headers: { "Content-Type": "application/json" },
         });
         const data = await response.json();
@@ -207,7 +207,7 @@ function Chat() {
   const deleteHistory = async () => {
     if (window.confirm("Delete all messages for this chat?")) {
       try {
-        await fetch(`http://localhost:5001/api/messages/history/${myId}/${activeTargetId}`, { method: "DELETE" });
+        await fetch(`${BACKEND_URL}/api/messages/history/${myId}/${activeTargetId}`, { method: "DELETE" });
         setMessageList([]);
       } catch (err) { alert("Delete failed"); }
     }

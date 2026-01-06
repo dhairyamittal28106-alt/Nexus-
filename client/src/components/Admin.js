@@ -5,7 +5,7 @@ const Admin = () => {
 
     useEffect(() => {
         const fetchUsers = async () => {
-            const res = await fetch("http://localhost:5001/api/auth/getallusers");
+            const res = await fetch("${BACKEND_URL}/api/auth/getallusers");
             const data = await res.json();
             setUsers(data);
         };
@@ -14,7 +14,7 @@ const Admin = () => {
 
     const deleteUser = async (id) => {
         if(window.confirm("Ban this user?")) {
-            await fetch(`http://localhost:5001/api/auth/deleteuser/${id}`, { method: 'DELETE' });
+            await fetch(`${BACKEND_URL}/api/auth/deleteuser/${id}`, { method: 'DELETE' });
             setUsers(users.filter(user => user._id !== id));
         }
     }

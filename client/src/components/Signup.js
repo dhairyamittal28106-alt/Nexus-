@@ -13,7 +13,7 @@ const Signup = () => {
         const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png";
 
         try {
-            const response = await fetch("http://localhost:5001/api/auth/createuser", {
+            const response = await fetch("${BACKEND_URL}/api/auth/createuser", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...creds, avatar: defaultAvatar })

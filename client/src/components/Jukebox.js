@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-
+import { BACKEND_URL } from "../config";
 function Jukebox({ setActiveSong }) {
   const [currentLocalSong, setCurrentLocalSong] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,7 +56,7 @@ function Jukebox({ setActiveSong }) {
 
       setIsSearching(true);
       try {
-        const res = await fetch(`http://localhost:5001/api/music/search?q=${encodeURIComponent(searchQuery)}&source=${source}`);
+        const res = await fetch(`${BACKEND_URL}/api/music/search?q=${encodeURIComponent(searchQuery)}&source=${source}`);
         const data = await res.json();
         const musicResults = Array.isArray(data) ? data : [];
         setResults(musicResults);

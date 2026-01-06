@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { BACKEND_URL } from "../config";
 const Search = () => {
     const [query, setQuery] = useState("");
     const [searchType, setSearchType] = useState("people"); // people, songs, or filters
@@ -39,7 +39,7 @@ const Search = () => {
     const fetchPendingRequests = async () => {
         if (!myId) return;
         try {
-            const res = await fetch(`http://localhost:5001/api/auth/pending-requests?myId=${myId}`);
+            const res = await fetch(`${BACKEND_URL}/api/auth/pending-requests?myId=${myId}`);
             const data = await res.json();
             setPendingRequests(Array.isArray(data) ? data : []);
         } catch (err) { console.error('Pending requests fail:', err); }
@@ -48,7 +48,7 @@ const Search = () => {
     const fetchFriends = async () => {
         if (!myId) return;
         try {
-            const res = await fetch(`http://localhost:5001/api/auth/friends-list?myId=${myId}`);
+            const res = await fetch(`${BACKEND_URL}/api/auth/friends-list?myId=${myId}`);
             const data = await res.json();
             setFriends(Array.isArray(data) ? data : []);
         } catch (err) { console.error('Friends list fail:', err); }
@@ -56,7 +56,7 @@ const Search = () => {
 
     const handleRequestAction = async (targetId, action) => {
         try {
-            const res = await fetch(`http://localhost:5001/api/auth/handle-request`, {
+            const res = await fetch(`${BACKEND_URL}/api/auth/handle-request`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ myId, targetId, action })
@@ -74,8 +74,8 @@ const Search = () => {
     const fetchSuggestions = async () => {
         try {
             const url = myId 
-                ? `http://localhost:5001/api/auth/suggestions?myId=${myId}`
-                : `http://localhost:5001/api/auth/suggestions`;
+                ? `${BACKEND_URL}/api/auth/suggestions?myId=${myId}`
+                : `${BACKEND_URL}/api/auth/suggestions`;
             const res = await fetch(url);
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -93,7 +93,7 @@ const Search = () => {
             if (searchType === "people") {
                 setLoading(true);
                 try {
-                    const res = await fetch(`http://localhost:5001/api/auth/search?name=${encodeURIComponent(value.trim())}&myId=${myId}`);
+                    const res = await fetch(`${BACKEND_URL}/api/auth/search?name=${encodeURIComponent(value.trim())}&myId=${myId}`);
                     const data = await res.json();
                     if (Array.isArray(data)) {
                         setResults(data.filter(user => user.name !== myUsername));
@@ -113,7 +113,7 @@ const Search = () => {
     const sendRequest = async (targetId, targetName) => {
         if (!myId) return alert("Session error");
         try {
-            const res = await fetch(`http://localhost:5001/api/auth/add-friend/${targetId}`, {
+            const res = await fetch(`${BACKEND_URL}/api/auth/add-friend/${targetId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ myId })

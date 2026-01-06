@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-
+import { BACKEND_URL } from "../config";
 const Reels = () => {
     // --- State Management ---
     const [posts, setPosts] = useState([]); 
@@ -61,7 +61,7 @@ const Reels = () => {
 
     const fetchReels = async () => {
         try {
-            const res = await fetch("http://localhost:5001/api/posts/feed");
+            const res = await fetch("${BACKEND_URL}/api/posts/feed");
             const data = await res.json();
             if (Array.isArray(data)) {
                 const merged = data.map(post => {
@@ -190,7 +190,7 @@ const Reels = () => {
                 return;
             }
 
-            const dbRes = await fetch("http://localhost:5001/api/posts/create", {
+            const dbRes = await fetch("${BACKEND_URL}/api/posts/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ user: username, caption, fileUrl: cloudRes.secure_url, contentType: fileType })
@@ -219,7 +219,7 @@ const Reels = () => {
             const newLikes = currentLikes.includes(username) ? currentLikes.filter(u => u !== username) : [...currentLikes, username];
             setLocalAIStorage(prev => ({ ...prev, likes: { ...prev.likes, [post._id]: newLikes } }));
         }
-        await fetch(`http://localhost:5001/api/posts/like/${post._id}`, {
+        await fetch(`${BACKEND_URL}/api/posts/like/${post._id}`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username })
         });
@@ -234,7 +234,7 @@ const Reels = () => {
             const currentComments = localAIStorage.comments[targetId] || [];
             setLocalAIStorage(prev => ({ ...prev, comments: { ...prev.comments, [targetId]: [...currentComments, { username, text: newComment, timestamp: new Date() }] } }));
         }
-        await fetch(`http://localhost:5001/api/posts/comment/${targetId}`, {
+        await fetch(`${BACKEND_URL}/api/posts/comment/${targetId}`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, text: newComment })
         });
@@ -243,7 +243,7 @@ const Reels = () => {
 
     const handleDelete = async (postId) => {
         if (window.confirm("Delete this reel?")) {
-            await fetch(`http://localhost:5001/api/posts/delete/${postId}`, { method: 'DELETE' });
+            await fetch(`${BACKEND_URL}/api/posts/delete/${postId}`, { method: 'DELETE' });
             fetchReels();
         }
     };

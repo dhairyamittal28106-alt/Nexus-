@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-
+import { BACKEND_URL } from "../config";
 function Studio() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -36,7 +36,7 @@ function Studio() {
     const imageData = canvas.toDataURL("image/png");
     
     try {
-      const res = await fetch("http://localhost:5001/api/posts", {
+      const res = await fetch("${BACKEND_URL}/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
