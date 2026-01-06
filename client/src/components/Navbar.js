@@ -12,7 +12,6 @@ const Navbar = () => {
         const token = localStorage.getItem('token');
         const name = localStorage.getItem('username');
         if (token) {
-            // Fallback to a readable handle if name is missing
             setUser(name || 'Guest');
         } else {
             setUser(null);
@@ -28,7 +27,6 @@ const Navbar = () => {
     const handleSearch = (e) => {
         const value = e.target.value;
         setSearchQuery(value);
-        // On Enter, jump to the Search page where advanced search + follow lives
         if (e.key === 'Enter' && value.trim().length > 0) {
             navigate('/search');
         }
@@ -37,7 +35,6 @@ const Navbar = () => {
     return (
         <nav className="navbar navbar-expand-lg fixed-top px-3" style={{ background: 'rgba(9, 9, 11, 0.9)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #27272a', zIndex: 1100 }}>
             <div className="container-fluid">
-                {/* 🚀 Brand Logo with original Purple vibe */}
                 <Link className="navbar-brand fw-bold text-white d-flex align-items-center" to="/">
                     <span style={{ background: 'linear-gradient(90deg, #6366f1, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.5rem' }}>
                         NEXUS AI
@@ -52,7 +49,6 @@ const Navbar = () => {
                     <ul className="navbar-nav ms-auto align-items-center gap-2">
                         {user ? (
                             <>
-                                {/* 🔍 INSTA-STYLE SEARCH BAR */}
                                 <li className="nav-item me-2">
                                     <div className="position-relative">
                                         <input 
@@ -75,14 +71,14 @@ const Navbar = () => {
                                     <Link className={`nav-link px-3 ${location.pathname === '/reels' ? 'text-white fw-bold' : 'text-white-50'}`} to="/reels">Reels</Link>
                                 </li>
 
-                                {/* ✨ NEW: STUDIO TAB */}
+                                {/* ✨ UPDATED: STUDIO TAB (Now White) */}
                                 <li className="nav-item">
-                                    <Link className={`nav-link px-3 ${location.pathname === '/studio' ? 'text-info fw-bold' : 'text-info opacity-75'}`} to="/studio">Studio ✨</Link>
+                                    <Link className={`nav-link px-3 ${location.pathname === '/studio' ? 'text-white fw-bold' : 'text-white-50'}`} to="/studio">Studio </Link>
                                 </li>
 
-                                {/* ✨ NEW: JUKEBOX TAB */}
+                                {/* ✨ UPDATED: JUKEBOX TAB (Now White) */}
                                 <li className="nav-item">
-                                    <Link className={`nav-link px-3 ${location.pathname === '/jukebox' ? 'text-info fw-bold' : 'text-info opacity-75'}`} to="/jukebox">Jukebox 🎵</Link>
+                                    <Link className={`nav-link px-3 ${location.pathname === '/jukebox' ? 'text-white fw-bold' : 'text-white-50'}`} to="/jukebox">Jukebox </Link>
                                 </li>
 
                                 <li className="nav-item ms-2">

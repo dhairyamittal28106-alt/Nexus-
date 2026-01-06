@@ -1,39 +1,71 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 function Jukebox({ setActiveSong }) {
   const [currentLocalSong, setCurrentLocalSong] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [source, setSource] = useState("yt"); // Default source: YouTube Music
+  const [source, setSource] = useState("yt");
+  
+  // 🔊 Scratch Sound Reference
+  const scratchAudioRef = useRef(null);
 
-  // ✨ MISSION: Multi-Source Config for UI Styling & Branding
   const sourceConfig = {
-    yt: { name: "YT Music", color: "#FF0000", icon: "🔴" },
-    spotify: { name: "Spotify", color: "#1DB954", icon: "🟢" },
-    gaana: { name: "Gaana/Saavn", color: "#e72c33", icon: "🟠" },
-    free: { name: "Open Source", color: "#00d2ff", icon: "💎" }
+    yt: { 
+      name: "YT Music", 
+      color: "#FF0000", 
+      icon: "🔴", 
+      baseUrl: "https://music.youtube.com/search?q=" 
+    },
+    spotify: { 
+      name: "Spotify", 
+      color: "#1DB954", 
+      icon: "🟢", 
+      baseUrl: "https://open.spotify.com/search/" 
+    },
+    apple: { 
+      name: "Apple Music", 
+      color: "#946FC7", 
+      icon: "🍎", 
+      baseUrl: "https://music.apple.com/us/search?term=" 
+    }
   };
 
+  const activeConfig = sourceConfig[source] || sourceConfig["yt"];
+
+  // ✨ MISSION: Record Scratch Logic
+  const playScratch = () => {
+    if (scratchAudioRef.current) {
+      scratchAudioRef.current.currentTime = 0; // Reset to start
+      scratchAudioRef.current.play().catch(e => console.log("Waiting for user interaction to play sound"));
+    }
+  };
+
+  // Trigger scratch whenever the source (platform) is changed
+  useEffect(() => {
+    playScratch();
+  }, [source]);
+
   const handleSearch = async (e) => {
-    // Trigger on Enter key or Search Icon click
     if (e.key === "Enter" || e.type === "click") {
       if (!searchQuery.trim()) return;
+      
+      const redirectUrl = activeConfig.baseUrl + encodeURIComponent(searchQuery);
+      window.open(redirectUrl, "_blank");
+      setTimeout(() => { window.focus(); }, 800);
+
       setIsSearching(true);
       try {
-        // Fetching from the Resilient Hub Backend
         const res = await fetch(`http://localhost:5001/api/music/search?q=${encodeURIComponent(searchQuery)}&source=${source}`);
-        
-        // Handle node errors gracefully
-        if (!res.ok) throw new Error("Music Hub nodes unreachable");
-        
         const data = await res.json();
-        
-        // Handling the array of real results (or the Backup Stream if nodes are busy)
-        setResults(Array.isArray(data) ? data : []);
+        const musicResults = Array.isArray(data) ? data : [];
+        setResults(musicResults);
+
+        if (musicResults.length > 0) {
+            handlePlay(musicResults[0]);
+        }
       } catch (err) {
-        console.error("Nexus Music Search Error:", err);
-        setResults([]);
+        console.error("Nexus Search Error:", err);
       } finally {
         setIsSearching(false);
       }
@@ -41,56 +73,75 @@ function Jukebox({ setActiveSong }) {
   };
 
   const handlePlay = (song) => {
+    playScratch(); // Scratch when a new song is selected from the list
     setCurrentLocalSong(song);
-    // ✨ Syncs with your global App.js player for persistent background play
     if (setActiveSong) setActiveSong(song); 
   };
 
   return (
     <div className="container mt-5 pt-5 min-vh-100" style={{ color: 'white' }}>
+      
+      {/* 📀 Hidden Audio element for the Scratch effect */}
+      <audio 
+        ref={scratchAudioRef} 
+        src="https://www.zapsplat.com/wp-content/uploads/2015/sound-effects-one/audio_hero_RecordScratch_DIGIJ02_57_311.mp3" 
+        preload="auto" 
+      />
+
       <style>{`
-        .source-chip { padding: 8px 18px; border-radius: 100px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; font-size: 0.8rem; background: rgba(0,0,0,0.3); color: #aaa; }
-        .source-chip:hover { transform: translateY(-3px); background: rgba(255,255,255,0.05); }
-        .source-chip.active { border-color: currentColor; color: inherit; background: rgba(255,255,255,0.1); font-weight: bold; box-shadow: 0 0 15px currentColor; }
+        .source-chip { padding: 8px 18px; border-radius: 100px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; font-size: 0.8rem; background: rgba(0,0,0,0.3); white-space: nowrap; }
+        .source-chip.active { border-color: currentColor; background: rgba(255,255,255,0.1); font-weight: bold; box-shadow: 0 0 15px currentColor; }
         
         .glass-list-item { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 15px; transition: 0.3s; cursor: pointer; }
-        .glass-list-item:hover { background: rgba(255, 255, 255, 0.08); transform: scale(1.02); border-color: ${sourceConfig[source].color}; box-shadow: 0 0 15px ${sourceConfig[source].color}33; }
+        .glass-list-item:hover { background: rgba(255, 255, 255, 0.08); transform: scale(1.02); border-color: ${activeConfig.color}; }
         
+        /* 💿 ALWAYS-ON NEON VINYL STUDIO VISUALS */
+        .vinyl-wrapper { position: relative; width: 220px; height: 220px; margin: 20px auto; }
+        .neon-ring {
+          position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
+          border-radius: 50%; border: 3.5px solid ${activeConfig.color};
+          box-shadow: 0 0 25px ${activeConfig.color}, inset 0 0 15px ${activeConfig.color};
+          animation: pulseRing 1.5s infinite ease-in-out;
+          z-index: 1;
+        }
         .vinyl-record { 
-          width: 220px; height: 220px; border-radius: 50%; 
-          background: radial-gradient(circle, #222 30%, #000 70%); 
-          border: 8px solid #333; animation: spin 4s linear infinite; 
-          box-shadow: 0 0 40px rgba(0,0,0,0.6); position: relative;
+          width: 100%; height: 100%; border-radius: 50%; 
+          background: radial-gradient(circle, #333 10%, #111 40%, #000 100%); 
+          border: 8px solid #222; animation: spinRecord 4s linear infinite; 
+          box-shadow: 0 0 40px rgba(0,0,0,1); position: relative; z-index: 2; overflow: hidden;
         }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .vinyl-record img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; opacity: 0.85; }
         
-        .now-playing-glass { backdrop-filter: blur(25px); border-radius: 40px; border: 1px solid rgba(255, 255, 255, 0.1); }
+        @keyframes spinRecord { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulseRing { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.03); filter: brightness(1.5); } }
         
-        .search-input-glass { 
-          background: rgba(0,0,0,0.4); border: 1px solid ${sourceConfig[source].color}55; 
-          border-radius: 100px; padding: 14px 25px; color: white; transition: 0.4s; 
+        /* 📊 ALWAYS-ON VOLUME SPIKES */
+        .visualizer-container { display: flex; align-items: flex-end; gap: 5px; height: 50px; margin: 25px 0; justify-content: center; }
+        .bar { width: 6px; background: ${activeConfig.color}; border-radius: 10px; animation: fakeSpike 0.5s infinite alternate ease-in-out; box-shadow: 0 0 10px ${activeConfig.color}77; }
+        @keyframes fakeSpike { from { height: 10px; opacity: 0.4; } to { height: 45px; opacity: 1; } }
+        
+        .bar:nth-child(1) { animation-delay: 0.1s; } .bar:nth-child(2) { animation-delay: 0.3s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; } .bar:nth-child(4) { animation-delay: 0.4s; }
+        .bar:nth-child(5) { animation-delay: 0.1s; } .bar:nth-child(6) { animation-delay: 0.5s; }
+
+        .now-playing-glass { 
+          background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(30px); 
+          border-radius: 40px; border: 1px solid rgba(255, 255, 255, 0.1); 
+          width: 100%; min-height: 480px; transition: 0.5s;
         }
-        .search-input-glass:focus { 
-          background: rgba(255,255,255,0.1); border-color: ${sourceConfig[source].color}; outline: none; 
-          box-shadow: 0 0 20px ${sourceConfig[source].color}33; 
-        }
+        .search-input-glass { background: rgba(0,0,0,0.4); border: 1px solid ${activeConfig.color}77; border-radius: 100px; padding: 15px 30px; color: white; transition: 0.4s; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
       <div className="row g-5 justify-content-center">
-        {/* 🔍 Left Side: Multi-Source Search Results */}
         <div className="col-md-7">
           <div className="mb-4">
-            <h1 className="fw-bold mb-1 text-uppercase tracking-wider">Nexus <span style={{ color: sourceConfig[source].color }}>Jukebox</span></h1>
-            <p className="text-muted small">Hub Status: {sourceConfig[source].name} Failover Active</p>
+            <h1 className="fw-bold mb-1 text-uppercase tracking-wider">Nexus <span style={{ color: activeConfig.color }}>Jukebox</span></h1>
           </div>
 
-          {/* 🔘 Provider Selector Chips */}
           <div className="d-flex gap-2 mb-4 flex-wrap">
             {Object.keys(sourceConfig).map(key => (
-              <div 
-                key={key} 
-                className={`source-chip ${source === key ? 'active' : ''}`} 
+              <div key={key} className={`source-chip ${source === key ? 'active' : ''}`} 
                 style={source === key ? { color: sourceConfig[key].color, borderColor: sourceConfig[key].color } : {}}
                 onClick={() => setSource(key)}
               >
@@ -100,98 +151,56 @@ function Jukebox({ setActiveSong }) {
           </div>
 
           <div className="position-relative mb-4">
-            <input 
-              type="text" 
-              className="search-input-glass w-100 shadow-lg" 
-              placeholder={`Find any track on ${sourceConfig[source].name}...`} 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearch}
-            />
-            <button 
-              onClick={handleSearch} 
-              className="btn position-absolute end-0 top-50 translate-middle-y me-2"
-              style={{ background: 'transparent', border: 'none', color: sourceConfig[source].color }}
-            >
-              🔍
-            </button>
+            <input type="text" className="search-input-glass w-100 shadow-lg" placeholder={`Search on ${activeConfig.name}...`} 
+              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearch} />
           </div>
 
-          <div className="d-flex flex-column gap-2 no-scrollbar" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+          <div className="d-flex flex-column gap-2 no-scrollbar" style={{ maxHeight: '50vh', overflowY: 'auto' }}>
             {isSearching ? (
-              <div className="text-center py-5">
-                <div className="spinner-border" style={{ color: sourceConfig[source].color }} role="status"></div>
-                <p className="mt-2 text-muted fw-bold">Querying {sourceConfig[source].name} Nodes...</p>
-              </div>
-            ) : results.length > 0 ? (
-              results.map((song, i) => (
-                <div key={i} className="glass-list-item p-3 d-flex align-items-center justify-content-between shadow-sm" onClick={() => handlePlay(song)}>
-                  <div className="d-flex align-items-center gap-3">
-                    <img 
-                      src={song.cover || `https://placehold.co/100x100/000/fff?text=Music`} 
-                      alt="thumbnail" 
-                      style={{ width: '55px', height: '55px', borderRadius: '12px', objectFit: 'cover' }} 
-                    />
-                    <div style={{ maxWidth: '70%' }}>
-                      <div className="fw-bold text-truncate">{song.title}</div>
-                      <small className="text-muted">{song.artist}</small>
-                    </div>
-                  </div>
-                  <div className="pe-2 fs-5" style={{ color: sourceConfig[source].color }}>{sourceConfig[source].icon}</div>
+              <div className="text-center py-5"><div className="spinner-border" style={{ color: activeConfig.color }}></div></div>
+            ) : results.map((song, i) => (
+              <div key={i} className="glass-list-item p-3 d-flex align-items-center justify-content-between shadow-sm" onClick={() => handlePlay(song)}>
+                <div className="d-flex align-items-center gap-3">
+                  <img src={song.cover} alt="cover" style={{ width: '50px', height: '50px', borderRadius: '12px', objectFit: 'cover' }} />
+                  <div className="fw-bold text-truncate" style={{ maxWidth: '280px' }}>{song.title}</div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-5 opacity-50">
-                <div className="fs-1">🎶</div>
-                <p className="mt-2">Nexus Nodes Idle. Search to begin.</p>
+                <div style={{ color: activeConfig.color }}>▶</div>
               </div>
-            )}
+            ))}
           </div>
         </div>
 
-        {/* 💿 Right Side: Now Playing Visualizer */}
         <div className="col-md-5">
-          {currentLocalSong ? (
-            <div 
-              className="now-playing-glass p-5 text-center shadow-lg h-100 d-flex flex-column align-items-center justify-content-center"
-              style={{ background: `${sourceConfig[source].color}08`, borderColor: `${sourceConfig[source].color}33` }}
-            >
-               <div className="vinyl-record mb-4 d-flex align-items-center justify-content-center">
-                  <img 
-                    src={currentLocalSong.cover || "https://placehold.co/200x200/000/fff?text=💿"} 
-                    alt="spinning cover" 
-                    crossOrigin="anonymous"
-                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
-                  />
-                  <div className="position-absolute translate-middle top-50 start-50 bg-dark rounded-circle border border-secondary" style={{ width: '40px', height: '40px' }}></div>
-               </div>
-               
-               <h3 className="fw-bold mb-1 text-truncate w-100">{currentLocalSong.title}</h3>
-               <p className="opacity-75 mb-4" style={{ color: sourceConfig[source].color }}>{currentLocalSong.artist}</p>
-               
-               <audio 
-                 key={currentLocalSong.url}
-                 src={currentLocalSong.url} 
-                 controls 
-                 autoPlay 
-                 className="w-100" 
-                 style={{ filter: 'invert(100%) brightness(1.5)' }}
-               ></audio>
-               
-               <div 
-                className="mt-4 badge rounded-pill bg-dark border px-4 py-2 opacity-75 tracking-widest"
-                style={{ borderColor: sourceConfig[source].color, color: sourceConfig[source].color }}
-               >
-                  BRIDGE: {sourceConfig[source].name.toUpperCase()}
+          <div className="now-playing-glass p-5 text-center shadow-lg d-flex flex-column align-items-center justify-content-center"
+            style={{ borderColor: currentLocalSong ? `${activeConfig.color}77` : 'rgba(255,255,255,0.1)' }}>
+            
+            <div className="vinyl-wrapper">
+               <div className="neon-ring"></div>
+               <div className="vinyl-record">
+                 <img src={currentLocalSong ? currentLocalSong.cover : "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400"} alt="spinning" />
+                 <div className="position-absolute translate-middle top-50 start-50 bg-dark rounded-circle border border-secondary" style={{ width: '40px', height: '40px', zIndex: 5 }}></div>
                </div>
             </div>
-          ) : (
-            <div className="now-playing-glass p-5 text-center text-muted h-100 d-flex flex-column align-items-center justify-content-center border-dashed border-secondary">
-              <div className="fs-1 mb-3">🎧</div>
-              <h4 className="fw-bold">Waiting for Vibe...</h4>
-              <p className="small px-4 text-white-50">Choose a platform above to bridge Nexus with global audio nodes.</p>
+            
+            <h3 className="fw-bold mb-1 text-truncate w-100">
+                {currentLocalSong ? currentLocalSong.title : "Studio Active"}
+            </h3>
+            <p className="opacity-75 mb-1" style={{ color: activeConfig.color }}>
+                {currentLocalSong ? currentLocalSong.artist : "NEXUS HI-FI"}
+            </p>
+            
+            <div className="visualizer-container">
+               {[...Array(6)].map((_, i) => <div key={i} className="bar"></div>)}
             </div>
-          )}
+
+            {currentLocalSong && (
+                <audio key={currentLocalSong.url} src={currentLocalSong.url} controls autoPlay className="w-100 mt-2" style={{ filter: 'invert(100%) brightness(1.5)' }}></audio>
+            )}
+            
+            <div className="mt-4 badge rounded-pill bg-dark border px-4 py-2 opacity-75 tracking-widest" style={{ borderColor: activeConfig.color, color: activeConfig.color }}>
+               {currentLocalSong ? `SOURCE: ${activeConfig.name.toUpperCase()}` : "READY TO SYNC"}
+            </div>
+          </div>
         </div>
       </div>
     </div>

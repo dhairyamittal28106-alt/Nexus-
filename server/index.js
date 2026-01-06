@@ -185,82 +185,45 @@ io.on('connection', (socket) => {
     console.log('🔴 Socket disconnected', socket.id);
   });
 });
-// ================= MISSION: RESILIENT MULTI-PROVIDER HUB =================
+// ================= MISSION: THE AUDIO DB MUSIC ENGINE =================
 app.get("/api/music/search", async (req, res) => {
-    const { q, source } = req.query;
-    if (!q) return res.json([]);
-
-    console.log(`📡 Nexus Hub: Searching ${source?.toUpperCase()} for "${q}"`);
-
     try {
-        if (source === 'yt' || source === 'spotify') {
-            // Worldwide Piped Nodes for YT/Spotify
-            const ytNodes = [
-                "https://pipedapi.kavin.rocks",
-                "https://api.piped.victr.me",
-                "https://piped-api.lunar.icu",
-                "https://pipedapi.leptons.xyz"
-            ];
+        const { q } = req.query;
+        if (!q) return res.json([]);
 
-            for (const node of ytNodes) {
-                try {
-                    const ytRes = await fetch(`${node}/search?q=${encodeURIComponent(q)}&filter=music_songs`, { signal: AbortSignal.timeout(3000) });
-                    const contentType = ytRes.headers.get("content-type");
-                    
-                    if (contentType && contentType.includes("application/json")) {
-                        const ytData = await ytRes.json();
-                        if (ytData.items && ytData.items.length > 0) {
-                            return res.json(ytData.items.map(item => ({
-                                title: item.title,
-                                artist: item.uploaderName,
-                                url: `${node}/streams/${item.url.split("v=")[1]}`,
-                                cover: item.thumbnail,
-                                source: 'YouTube Music'
-                            })));
-                        }
-                    }
-                } catch (e) { continue; } // Try next node
-            }
-        } 
-        
-        if (source === 'gaana' || source === 'jiosaavn') {
-            const saavnNodes = [
-                "https://saavn.dev/api/search/songs",
-                "https://jiosaavn-api-beta.vercel.app/search/songs"
-            ];
+        console.log(`📡 Querying AudioDB for: ${q}`);
 
-            for (const node of saavnNodes) {
-                try {
-                    const saavnRes = await fetch(`${node}?query=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(3000) });
-                    const saavnData = await saavnRes.json();
-                    if (saavnData.success && saavnData.data.results) {
-                        return res.json(saavnData.data.results.map(song => ({
-                            title: song.name,
-                            artist: song.artists.primary[0]?.name,
-                            url: song.downloadUrl[song.downloadUrl.length - 1]?.url,
-                            cover: song.image[song.image.length - 1]?.url,
-                            source: 'Gaana/Saavn'
-                        })));
-                    }
-                } catch (e) { continue; }
-            }
+        // 1. Fetch Artist/Album Metadata from AudioDB
+        const audioDbRes = await fetch(`https://www.theaudiodb.com/api/v1/json/123/search.php?s=${encodeURIComponent(q)}`);
+        const audioDbData = await audioDbRes.json();
+
+        // 2. Fetch playable tracks from the global streaming node
+        // Combining AudioDB metadata with Saavn's high-speed streaming links
+        const streamRes = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(q)}`);
+        const streamData = await streamRes.json();
+
+        if (streamData.success && streamData.data.results) {
+            const results = streamData.data.results.map(song => ({
+                title: song.name,
+                artist: song.artists.primary[0]?.name || "Nexus Artist",
+                url: song.downloadUrl[song.downloadUrl.length - 1]?.url, // High-quality 320kbps
+                cover: song.image[song.image.length - 1]?.url, // High-res cover
+                source: "AudioDB Node"
+            }));
+            return res.json(results);
         }
 
-        // 🛡️ EMERGENCY FALLBACK (Free/Open Source)
-        // If all APIs fail, we return high-quality system tracks so user can still vibe
-        res.json([
-            { 
-                title: `${q} (Nexus AI Mix)`, 
-                artist: "Nexus System", 
-                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", 
-                cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400", 
-                source: "Backup Node" 
-            }
-        ]);
+        // 🛡️ Fallback if API is busy
+        res.json([{ 
+            title: `${q} (System Mix)`, 
+            artist: "Nexus Node", 
+            url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", 
+            cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400" 
+        }]);
 
     } catch (err) {
-        console.error("❌ HUB FATAL ERROR:", err.message);
-        res.status(500).json({ error: "All nodes unreachable" });
+        console.error("❌ MUSIC HUB ERROR:", err.message);
+        res.status(500).json({ error: "API unreachable" });
     }
 });
 // ================= DATABASE =================
