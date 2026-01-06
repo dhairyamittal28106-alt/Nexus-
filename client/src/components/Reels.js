@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BACKEND_URL } from "../config";
+
 const Reels = () => {
     // --- State Management ---
     const [posts, setPosts] = useState([]); 
@@ -61,7 +62,8 @@ const Reels = () => {
 
     const fetchReels = async () => {
         try {
-            const res = await fetch("${BACKEND_URL}/api/posts/feed");
+            // ✅ FIXED: Using backticks and uppercase BACKEND_URL
+            const res = await fetch(`${BACKEND_URL}/api/posts/feed`);
             const data = await res.json();
             if (Array.isArray(data)) {
                 const merged = data.map(post => {
@@ -74,8 +76,6 @@ const Reels = () => {
                     }
                     return post;
                 });
-                // ✨ Infinite Scroll Strategy: Double the array to simulate loop if short, 
-                // but mostly relies on the feed returning unique or repeated data.
                 setPosts(merged);
             }
         } catch (err) { console.error("Sync Error", err); }
@@ -87,28 +87,21 @@ const Reels = () => {
         return () => clearInterval(interval);
     }, [localAIStorage]);
 
-    // --- Interaction Handlers ---
     const handleScroll = () => {
         if (!containerRef.current) return;
         const { scrollTop, clientHeight, scrollHeight } = containerRef.current;
-        
-        // 1. Calculate which reel is currently in view
         const currentIndex = Math.round(scrollTop / clientHeight);
         
-        // 2. Count Reel Watch logic (Ensure it only counts when moving to a NEW reel)
         if (currentIndex !== lastViewedIndex.current) {
             setReelsWatched(prev => prev + 1);
             lastViewedIndex.current = currentIndex;
         }
 
-        // 3. 100 Reels Caution Trigger
         if (reelsWatched >= 100 && !hasAlerted100) {
             alert("⚠️ Caution: You have watched 100+ reels today. Take a break!");
             setHasAlerted100(true);
         }
 
-        // 4. Infinite Scroll Logic (Seamless Loop)
-        // If user reaches near the bottom, append the same posts again to create infinite loop
         if (scrollTop + clientHeight >= scrollHeight - 50) {
             setPosts(prev => [...prev, ...prev.slice(0, 10)]);
         }
@@ -190,7 +183,8 @@ const Reels = () => {
                 return;
             }
 
-            const dbRes = await fetch("${BACKEND_URL}/api/posts/create", {
+            // ✅ FIXED: Using backticks and uppercase BACKEND_URL
+            const dbRes = await fetch(`${BACKEND_URL}/api/posts/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ user: username, caption, fileUrl: cloudRes.secure_url, contentType: fileType })
@@ -251,7 +245,6 @@ const Reels = () => {
     return (
         <div style={{ backgroundColor: theme.bg, height: '100vh', position: 'relative', overflow: 'hidden', transition: '0.3s' }}>
             
-            {/* ✨ FIXED TOP NAVIGATION */}
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '60px', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', zIndex: 1000, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <h3 style={{ color: theme.accent, margin: 0, fontWeight: 'bold', letterSpacing: '1px' }}>NEXUS AI</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -262,14 +255,12 @@ const Reels = () => {
                 </div>
             </div>
 
-            {/* Download Progress Overlay */}
             {downloadProgress !== null && (
                 <div style={{ position: 'fixed', top: '75px', left: '50%', transform: 'translateX(-50%)', zIndex: 10000, background: theme.accent, color: 'white', padding: '10px 20px', borderRadius: '30px', fontWeight: 'bold' }}>
                     📥 Saving: {downloadProgress}%
                 </div>
             )}
 
-            {/* SIDEBAR (Progress Tracker) */}
             <div style={{ position: 'fixed', top: '80px', left: '20px', zIndex: 100, background: theme.sidebarBg, backdropFilter: 'blur(15px)', padding: '15px', borderRadius: '20px', color: theme.text, border: `1px solid ${theme.border}`, width: '180px', textAlign: 'center' }}>
                 <div style={{ position: 'relative', width: '60px', height: '60px', margin: '0 auto 10px', borderRadius: '50%', border: `2px solid ${theme.accent}`, overflow: 'hidden' }}>
                     <img src={profilePic || 'https://via.placeholder.com/60'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
@@ -280,7 +271,6 @@ const Reels = () => {
                 {reelsWatched >= 100 && <div style={{ fontSize: '10px', color: '#ff4d4d', fontWeight: 'bold', marginTop: '5px' }}>LIMIT REACHED! ⚠️</div>}
             </div>
 
-            {/* REELS CONTAINER (Infinite Scroll) */}
             <div ref={containerRef} onScroll={handleScroll} style={{ height: '100vh', overflowY: 'scroll', scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }}>
                 {posts.map((post, index) => (
                     <div key={`${post._id}-${index}`} style={{ height: '100vh', scrollSnapAlign: 'start', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -296,7 +286,6 @@ const Reels = () => {
                             <div onClick={() => setIsMuted(!isMuted)} style={{ position: 'absolute', bottom: '20px', right: '20px', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '50%', cursor: 'pointer', color: 'white', zIndex: 10 }}>{isMuted ? '🔇' : '🔊'}</div>
                         </div>
 
-                        {/* Controls */}
                         <div style={{ position: 'absolute', bottom: '120px', right: '20px', display: 'flex', flexDirection: 'column', gap: '25px', zIndex: 50, alignItems: 'center' }}>
                             <div onClick={() => setShowSettings(true)} style={{ cursor: 'pointer', background: theme.sidebarBg, padding: '10px', borderRadius: '50%', border: `1px solid ${theme.border}`, color: theme.text }}>⚙️</div>
                             <div onClick={() => handleDownload(post.fileUrl, `nexus_${post._id}.mp4`)} style={{ cursor: 'pointer', fontSize: '32px' }}>📥</div>
@@ -316,7 +305,6 @@ const Reels = () => {
 
             <button onClick={() => setShowUpload(true)} style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 999, width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #bc1888)', border: 'none', color: 'white', fontSize: '30px' }}>+</button>
 
-            {/* Profile Settings */}
             {showSettings && (
                 <div style={{ position: 'fixed', inset: 0, background: theme.bg, zIndex: 10001, padding: '40px', color: theme.text, overflowY: 'auto' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: `1px solid ${theme.border}`, paddingBottom: '20px' }}>
@@ -326,7 +314,6 @@ const Reels = () => {
                             <button onClick={() => setShowSettings(false)} className="btn btn-danger">✕ Close</button>
                         </div>
                     </div>
-                    {/* Preserved Profile Edit Logic */}
                     <div style={{ background: theme.sidebarBg, padding: '25px', borderRadius: '20px', marginBottom: '30px', border: `1px solid ${theme.border}` }}>
                         <div style={{ display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <div style={{ position: 'relative' }}>
@@ -347,7 +334,6 @@ const Reels = () => {
                 </div>
             )}
 
-            {/* Upload Modal */}
             {showUpload && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ width: '380px', background: theme.card, padding: '30px', borderRadius: '20px', border: `1px solid ${theme.border}` }}>
@@ -377,7 +363,6 @@ const Reels = () => {
                 </div>
             )}
 
-            {/* Comments */}
             {showComments && (
                 <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: '55vh', background: theme.card, zIndex: 5000, padding: '25px', borderTop: `1px solid ${theme.border}`, borderTopLeftRadius: '25px', borderTopRightRadius: '25px', color: theme.text }}>
                     <div className="d-flex justify-content-between mb-3"><h6>Comments</h6><button onClick={() => setShowComments(null)} style={{ color: '#ff4d4d', background: 'none', border: 'none' }}>✕</button></div>
