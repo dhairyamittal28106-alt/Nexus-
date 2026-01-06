@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { BACKEND_URL } from "../config";
+
 function Studio() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -36,7 +37,8 @@ function Studio() {
     const imageData = canvas.toDataURL("image/png");
     
     try {
-      const res = await fetch("${BACKEND_URL}/api/posts", {
+      // ✅ FIXED: Using backticks (``) and uppercase BACKEND_URL
+      const res = await fetch(`${BACKEND_URL}/api/posts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -53,7 +55,8 @@ function Studio() {
         alert(`Server Error: ${data.error || data.message}`);
       }
     } catch (err) {
-      alert("Post failed. Check server connection.");
+      console.error("Studio Post Error:", err);
+      alert("Post failed. Check server connection or file size.");
     } finally {
       setIsPosting(false);
     }
@@ -63,31 +66,23 @@ function Studio() {
     <div className="container-fluid min-vh-100" style={{ background: '#09090b', color: '#e4e4e7', paddingTop: '100px' }}>
       <style>{`
         .glass-panel { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-        
         .lens-frame { position: relative; border-radius: 24px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); background: #000; box-shadow: 0 0 30px rgba(0,0,0,0.5); height: 450px; }
-        
         .filter-chip { padding: 10px 22px; border-radius: 100px; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: rgba(255,255,255,0.03); font-size: 0.85rem; font-weight: 500; color: #a1a1aa; white-space: nowrap; }
         .filter-chip:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); color: white; }
         .filter-chip.active { background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; border-color: transparent; box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
-        
         .master-canvas { width: 100%; border-radius: 20px; border: 1px solid rgba(168, 85, 247, 0.2); box-shadow: 0 0 40px rgba(0,0,0,0.8); background: #000; transition: 0.3s; }
-        
         .btn-neon-primary { background: #7c3aed; color: white; border: none; border-radius: 16px; font-weight: 600; padding: 14px 24px; transition: 0.3s; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); }
         .btn-neon-primary:hover { background: #8b5cf6; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(124, 58, 237, 0.4); }
-        
         .btn-neon-success { background: #10b981; color: white; border: none; border-radius: 16px; font-weight: 600; transition: 0.3s; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2); }
         .btn-neon-success:hover:not(:disabled) { background: #059669; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3); }
-        
         .status-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
-        
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
       <div className="row justify-content-center px-lg-5">
         <div className="col-xl-11 glass-panel p-4 p-lg-5">
           
-          {/* Header Area */}
           <div className="d-flex flex-wrap justify-content-between align-items-center mb-5 gap-3">
             <div>
               <h1 className="fw-bold mb-1 text-uppercase tracking-tighter" style={{ fontSize: '2.5rem' }}>
@@ -101,7 +96,6 @@ function Studio() {
           </div>
 
           <div className="row g-5">
-            {/* Live Preview Column */}
             <div className="col-lg-7">
               <div className="lens-frame mb-4">
                 <video ref={videoRef} autoPlay className="w-100 h-100" style={{ filter: filter, objectFit: 'cover' }}></video>
@@ -128,7 +122,6 @@ function Studio() {
               </div>
             </div>
 
-            {/* Output & Actions Column */}
             <div className="col-lg-5">
               <div className="h-100 d-flex flex-column" style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '30px' }}>
                 <div className="mb-auto">

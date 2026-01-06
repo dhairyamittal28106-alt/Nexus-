@@ -4,7 +4,6 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
-// ✨ Load environment variables first
 require('dotenv').config(); 
 
 const Message = require('./models/Message');
@@ -13,7 +12,6 @@ const Post = require('./models/Post');
 
 const app = express();
 const server = http.createServer(app);
-
 
 // ✨ Cloudinary Config
 cloudinary.config({
@@ -31,8 +29,9 @@ const io = new Server(server, {
 
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'DELETE', 'PUT'] }));
 
-// ✨ MISSION: Support for 2026 Ultra-HD Glassmorphism renders
+// ✨ Support for 2026 Ultra-HD Glassmorphism renders & Large Chat Images
 app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ limit: '200mb', extended: true }));
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "Nexus 2026 Server Active" }));
@@ -40,10 +39,7 @@ app.get("/", (req, res) => res.json({ status: "Nexus 2026 Server Active" }));
 // ================= MISSION: POST TO REELS (FIXED & SYNCED) =================
 app.post("/api/posts", async (req, res) => {
     try {
-        // ✨ FIXED: Extracting keys to match BOTH Frontend and Backend Schema
         const { user, username, fileUrl, mediaUrl, caption } = req.body;
-        
-        // Use whichever key the frontend sends (handles 'fileUrl' or 'mediaUrl')
         const finalImage = fileUrl || mediaUrl;
         const finalUser = user || username;
 
@@ -51,17 +47,15 @@ app.post("/api/posts", async (req, res) => {
             return res.status(400).json({ error: "Missing required parameter - file" });
         }
 
-        // 1. Upload to Cloudinary
         const uploadRes = await cloudinary.uploader.upload(finalImage, {
             folder: "nexus_reels",
         });
 
-        // 2. Save to MongoDB - Mapping to your specific Schema paths
         const newPost = new Post({
-            user: finalUser,             // Matches Path `user`
-            username: finalUser,         // Fallback for username field
-            fileUrl: uploadRes.secure_url, // Matches Path `fileUrl`
-            mediaUrl: uploadRes.secure_url, // Fallback for mediaUrl field
+            user: finalUser,
+            username: finalUser,
+            fileUrl: uploadRes.secure_url,
+            mediaUrl: uploadRes.secure_url,
             caption: caption || "Captured in Nexus Studio 2026 ✨",
             timestamp: new Date()
         });
@@ -74,18 +68,25 @@ app.post("/api/posts", async (req, res) => {
     }
 });
 
-
-// ✨ Dedicated Cloudinary Upload Route for Chat Images
+// ✨ Dedicated Cloudinary Upload Route for Chat Images (SYNCED WITH CHAT.JS)
 app.post("/api/messages/upload", async (req, res) => {
     try {
-        if (!req.body.data) return res.status(400).json({ error: "No image data provided" });
-        const uploadResponse = await cloudinary.uploader.upload(req.body.data, {
+        // Checking 'data' because Chat.js sends { data: reader.result }
+        const imageData = req.body.data || req.body.image; 
+        
+        if (!imageData) {
+            return res.status(400).json({ error: "No image data provided" });
+        }
+
+        const uploadResponse = await cloudinary.uploader.upload(imageData, {
             folder: "nexus_chat_images",
         });
+
+        // Returning 'url' so Chat.js can do: sendMessage(data.url)
         res.json({ url: uploadResponse.secure_url });
     } catch (err) {
-        console.error("❌ Cloudinary Error:", err);
-        res.status(500).json({ error: "Upload failed" });
+        console.error("❌ Chat Image Upload Error:", err);
+        res.status(500).json({ error: "Upload failed", details: err.message });
     }
 });
 
@@ -116,7 +117,7 @@ app.use("/api/posts", require("./routes/posts"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/messages", require("./routes/messages"));
 
-// ================= SOCKET LOGIC (PRESERVED & ERRORLESS) =================
+// ================= SOCKET LOGIC (PRESERVED) =================
 
 let onlineUsers = [];
 
@@ -187,20 +188,13 @@ io.on('connection', (socket) => {
     console.log('🔴 Socket disconnected', socket.id);
   });
 });
+
 // ================= MISSION: THE AUDIO DB MUSIC ENGINE =================
 app.get("/api/music/search", async (req, res) => {
     try {
         const { q } = req.query;
         if (!q) return res.json([]);
 
-        console.log(`📡 Querying AudioDB for: ${q}`);
-
-        // 1. Fetch Artist/Album Metadata from AudioDB
-        const audioDbRes = await fetch(`https://www.theaudiodb.com/api/v1/json/123/search.php?s=${encodeURIComponent(q)}`);
-        const audioDbData = await audioDbRes.json();
-
-        // 2. Fetch playable tracks from the global streaming node
-        // Combining AudioDB metadata with Saavn's high-speed streaming links
         const streamRes = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(q)}`);
         const streamData = await streamRes.json();
 
@@ -208,14 +202,13 @@ app.get("/api/music/search", async (req, res) => {
             const results = streamData.data.results.map(song => ({
                 title: song.name,
                 artist: song.artists.primary[0]?.name || "Nexus Artist",
-                url: song.downloadUrl[song.downloadUrl.length - 1]?.url, // High-quality 320kbps
-                cover: song.image[song.image.length - 1]?.url, // High-res cover
+                url: song.downloadUrl[song.downloadUrl.length - 1]?.url,
+                cover: song.image[song.image.length - 1]?.url,
                 source: "AudioDB Node"
             }));
             return res.json(results);
         }
 
-        // 🛡️ Fallback if API is busy
         res.json([{ 
             title: `${q} (System Mix)`, 
             artist: "Nexus Node", 
@@ -228,6 +221,7 @@ app.get("/api/music/search", async (req, res) => {
         res.status(500).json({ error: "API unreachable" });
     }
 });
+
 // ================= DATABASE =================
 
 mongoose.connect(process.env.MONGO_URI)
