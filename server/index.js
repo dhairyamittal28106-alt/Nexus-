@@ -14,6 +14,7 @@ const Post = require('./models/Post');
 const app = express();
 const server = http.createServer(app);
 
+
 // ✨ Cloudinary Config
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -72,6 +73,7 @@ app.post("/api/posts", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // ✨ Dedicated Cloudinary Upload Route for Chat Images
 app.post("/api/messages/upload", async (req, res) => {

@@ -1,0 +1,1 @@
+export const BACKEND_URL = "https://nexus-0x8z.onrender.com";
