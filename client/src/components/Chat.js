@@ -17,17 +17,14 @@ function Chat() {
   const [typingStatus, setTypingStatus] = useState("");
   const [seenCounts, setSeenCounts] = useState({}); 
   const [lastSeen, setLastSeen] = useState(""); 
-  
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
-  // ✨ RECENT CHATS STATE (Persisted in LocalStorage)
   const [recentChats, setRecentChats] = useState(() => {
     const saved = localStorage.getItem("recent_nexus_chats");
     return saved ? JSON.parse(saved) : [];
   });
 
-  // ✨ REPLY & REACTION STATES
   const [replyTo, setReplyTo] = useState(null);
   const [reactions, setReactions] = useState({});
 
@@ -55,7 +52,6 @@ function Chat() {
       });
       if (data.author !== username) {
         socket.emit("message_seen", { room: data.room, id: data.id, viewer: username });
-        // ✨ Add sender to recent chats automatically when message received
         addToRecent(data.author);
       }
     });
@@ -89,11 +85,10 @@ function Chat() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messageList, typingStatus]);
 
-  // ✨ HELPER: Add to Recent Missions List
   const addToRecent = (name) => {
     setRecentChats(prev => {
       const filtered = prev.filter(n => n !== name);
-      const updated = [name, ...filtered].slice(0, 8); // Store last 8
+      const updated = [name, ...filtered].slice(0, 8);
       localStorage.setItem("recent_nexus_chats", JSON.stringify(updated));
       return updated;
     });
@@ -105,7 +100,7 @@ function Chat() {
   };
 
   const startDmWith = async (peerName) => {
-    addToRecent(peerName); // Update Recent Missions UI
+    addToRecent(peerName);
     const peer = onlineUsers.find(u => u.name === peerName);
     let peerId = peer ? peer.userId : null;
     if (!peerId) {
@@ -247,56 +242,91 @@ function Chat() {
   };
 
   return (
-    <div className="container mt-5 pt-5">
+    <div className="container-fluid min-vh-100" style={{ background: '#09090b', paddingTop: '80px', color: '#e4e4e7' }}>
       <style>{`
-        .bubble-reply { background: rgba(255,255,255,0.1); border-left: 4px solid #007bff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 8px; }
-        .reaction-chip { background: #333; border-radius: 12px; padding: 1px 6px; font-size: 0.7rem; position: absolute; bottom: -10px; border: 1px solid #555; }
-        .reaction-picker { background: #222; border-radius: 20px; padding: 5px; display: none; position: absolute; top: -35px; left: 0; z-index: 10; border: 1px solid #444; }
-        .message-wrapper:hover .reaction-picker { display: flex; gap: 8px; }
-        .recent-item:hover { background: #27272a !important; cursor: pointer; transition: 0.2s; }
+        .glass-card { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; }
+        .neon-input { background: rgba(39, 39, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); color: white; border-radius: 12px; transition: 0.3s; }
+        .neon-input:focus { background: rgba(39, 39, 42, 0.8); border-color: #a855f7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); outline: none; }
+        .chat-bubble { border-radius: 18px; padding: 12px 16px; position: relative; animation: slideUp 0.3s ease-out; }
+        .bubble-mine { background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; border-bottom-right-radius: 4px; }
+        .bubble-theirs { background: rgba(39, 39, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-bottom-left-radius: 4px; }
+        .recent-item { transition: 0.3s; border-radius: 16px; border: 1px solid transparent; }
+        .recent-item:hover { background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3); transform: translateX(5px); }
+        .reaction-picker { background: rgba(24, 24, 27, 0.9); backdrop-filter: blur(10px); border-radius: 30px; padding: 5px 15px; display: none; position: absolute; top: -45px; z-index: 100; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .message-wrapper:hover .reaction-picker { display: flex; gap: 12px; }
+        .reaction-chip { background: rgba(39, 39, 42, 0.9); border-radius: 20px; padding: 2px 8px; font-size: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.1); position: absolute; bottom: -12px; right: 10px; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .reply-box { background: rgba(168, 85, 247, 0.1); border-left: 3px solid #a855f7; padding: 5px 10px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 8px; }
       `}</style>
 
       {!showChat ? (
-        <div className="row">
-          <div className="col-md-6 mb-4">
-            <div className="card p-4 h-100 text-center shadow-lg" style={{ background: '#18181b', border: '1px solid #333' }}>
-              <h4 className="text-white mb-4">Squad Portal</h4>
-              <div className="mb-3">
-                <div className="input-group">
-                  <input type="text" className="form-control" style={{ background: '#27272a', color: '#fff', border: 'none' }} placeholder="Phone +91..." value={phone} onChange={(e) => setPhone(e.target.value)} />
-                  <button onClick={sendWhatsApp} className="btn btn-success">📲 WA</button>
+        <div className="row justify-content-center g-4 px-3">
+          {/* SQUAD PORTAL */}
+          <div className="col-lg-5">
+            <div className="glass-card p-4 shadow-2xl h-100">
+              <div className="d-flex align-items-center gap-3 mb-4">
+                <div style={{ padding: '10px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '14px' }}>🌌</div>
+                <h4 className="m-0 fw-bold">Squad Portal</h4>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="input-group mb-3">
+                  <input type="text" className="neon-input form-control py-3" placeholder="Phone +91..." value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <button onClick={sendWhatsApp} className="btn btn-success px-4" style={{ borderRadius: '12px' }}>📲 WA</button>
                 </div>
+                
+                <div className="mb-4">
+                  <label className="small opacity-50 mb-2 ms-2">CHANNEL ID</label>
+                  <input type="text" className="neon-input form-control text-center py-3 fw-bold fs-5" placeholder="_ _ _ _ _ _" value={room} onChange={(e) => setRoom(e.target.value.toUpperCase())} />
+                </div>
+
+                <div className="d-flex gap-3 mb-4">
+                  <button onClick={createRoom} className="btn btn-dark w-50 py-2" style={{ borderRadius: '12px', border: '1px solid #3f3f46' }}>✨ Generate</button>
+                  <button onClick={() => { navigator.clipboard.writeText(room); setCopySuccess("Copied!"); }} className="btn btn-dark w-50 py-2" style={{ borderRadius: '12px', border: '1px solid #3f3f46' }}>{copySuccess || "🔗 Link"}</button>
+                </div>
+                
+                <button onClick={() => joinRoom()} className="btn btn-primary w-100 py-3 fw-bold shadow-lg" style={{ background: 'linear-gradient(90deg, #6366f1, #a855f7)', border: 'none', borderRadius: '16px' }}>
+                  INITIALIZE CONNECTION
+                </button>
               </div>
-              <input type="text" className="form-control text-center fw-bold text-primary mb-3" style={{ background: '#27272a', color: '#fff', border: 'none' }} placeholder="ROOM ID" value={room} onChange={(e) => setRoom(e.target.value.toUpperCase())} />
-              <div className="d-flex gap-2 mb-4">
-                <button onClick={createRoom} className="btn btn-outline-light w-50 btn-sm">✨ Create</button>
-                <button onClick={() => { navigator.clipboard.writeText(room); setCopySuccess("Copied!"); }} className="btn btn-outline-info w-50 btn-sm">{copySuccess || "🔗 Copy"}</button>
-              </div>
-              <button onClick={() => joinRoom()} className="btn btn-primary w-100 py-3 fw-bold">ENTER SQUAD</button>
             </div>
           </div>
-          <div className="col-md-6 mb-4">
-            <div className="card p-4 h-100 shadow-lg" style={{ background: '#18181b', border: '1px solid #333' }}>
-              <h4 className="text-white mb-4">Online Now 🟢</h4>
-              <div className="mb-4" style={{ maxHeight: '160px', overflowY: 'auto' }}>
-                {onlineUsers.length === 0 ? <p className="text-muted">Waiting for others...</p> : onlineUsers.map(u => (
-                  <div key={u.userId} className="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style={{ background: '#27272a' }}>
-                    <span className="text-white">@{u.name}</span>
-                    <button className="btn btn-sm btn-outline-light" onClick={() => startDmWith(u.name)}>DM</button>
+
+          {/* ONLINE & RECENT */}
+          <div className="col-lg-5">
+            <div className="glass-card p-4 shadow-2xl h-100">
+              <h5 className="fw-bold mb-4 d-flex align-items-center gap-2">
+                Live Feed <div className="online-dot"></div>
+              </h5>
+              <div className="custom-scroll mb-4" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {onlineUsers.length === 0 ? (
+                  <div className="text-center py-4 opacity-30">Scan for lifeforms...</div>
+                ) : onlineUsers.map(u => (
+                  <div key={u.userId} className="d-flex justify-content-between align-items-center mb-2 p-3 recent-item" style={{ background: 'rgba(39, 39, 42, 0.4)' }}>
+                    <div className="d-flex align-items-center gap-3">
+                        <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center" style={{ width: '35px', height: '35px' }}>{u.name[0]}</div>
+                        <span className="fw-bold">@{u.name}</span>
+                    </div>
+                    <button className="btn btn-sm btn-outline-primary rounded-pill px-3" onClick={() => startDmWith(u.name)}>Link DM</button>
                   </div>
                 ))}
               </div>
 
-              {/* ✨ RECENT MISSIONS SECTION */}
-              <h5 className="text-white mb-3" style={{ borderTop: '1px solid #333', paddingTop: '15px' }}>Recent Missions 🕒</h5>
-              <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                {recentChats.length === 0 ? <p className="text-muted small">No recent activity</p> : recentChats.map(name => (
-                  <div key={name} onClick={() => startDmWith(name)} className="recent-item d-flex align-items-center mb-2 p-2 rounded" style={{ background: '#1e1e21' }}>
-                    <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3" style={{ width: '35px', height: '35px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+              <h5 className="fw-bold mb-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>Recent Missions 🕒</h5>
+              <div className="custom-scroll" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                {recentChats.length === 0 ? <p className="opacity-30 small">No history found</p> : recentChats.map(name => (
+                  <div key={name} onClick={() => startDmWith(name)} className="recent-item d-flex align-items-center mb-2 p-3" style={{ background: 'rgba(24, 24, 27, 0.4)' }}>
+                    <div className="rounded-circle bg-dark border border-secondary d-flex align-items-center justify-content-center me-3" style={{ width: '40px', height: '40px' }}>
                       {name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-white">@{name}</span>
-                    <small className="ms-auto text-muted" style={{ fontSize: '0.6rem' }}>Open Chat →</small>
+                    <div>
+                        <div className="fw-bold text-white">@{name}</div>
+                        <div className="small opacity-40">Click to resume transmission</div>
+                    </div>
+                    <span className="ms-auto opacity-30">→</span>
                   </div>
                 ))}
               </div>
@@ -304,103 +334,126 @@ function Chat() {
           </div>
         </div>
       ) : (
-        <div className="card mx-auto shadow-lg" style={{ maxWidth: "800px", height: "80vh", background: '#18181b', border: '1px solid #333' }}>
-          <div className="card-header d-flex justify-content-between align-items-center bg-dark">
-            <div className="text-white">
-              <strong>{activeTarget || "Room: " + room}</strong><br/>
-              <small className={lastSeen === "Online" ? "text-success" : "text-muted"}>{lastSeen}</small>
-            </div>
-            <div className="d-flex gap-2">
-              <button className="btn btn-sm btn-danger" onClick={deleteHistory}>🗑️</button>
-              <button className="btn btn-sm btn-outline-info" onClick={() => startCall("voice")}>📞</button>
-              <button className="btn btn-sm btn-outline-info" onClick={() => startCall("video")}>📹</button>
-              <button className="btn btn-sm btn-outline-danger" onClick={() => setShowChat(false)}>Exit</button>
-            </div>
-          </div>
-
-          {isUploading && (
-            <div className="progress" style={{ height: "4px", borderRadius: 0, background: 'transparent' }}>
-              <div className="progress-bar progress-bar-striped progress-bar-animated bg-info" style={{ width: `${uploadProgress}%` }}></div>
-            </div>
-          )}
-
-          <div className="card-body bg-black" ref={scrollRef} style={{ overflowY: 'scroll', display: 'flex', flexDirection: 'column' }}>
-            {messageList.map((msg, i) => (
-              <div key={i} className={`d-flex mb-4 message-wrapper ${msg.author === username ? "justify-content-end" : "justify-content-start"}`} style={{ position: 'relative' }}>
-                <div className="reaction-picker">
-                  {reactionEmojis.map(emoji => (
-                    <span key={emoji} style={{ cursor: 'pointer' }} onClick={() => handleReaction(msg.id, emoji)}>{emoji}</span>
-                  ))}
+        /* CHAT INTERFACE */
+        <div className="container py-2">
+            <div className="glass-card mx-auto overflow-hidden shadow-2xl" style={{ maxWidth: "1000px", height: "85vh", display: 'flex', flexDirection: 'column' }}>
+                {/* HEADER */}
+                <div className="p-3 d-flex justify-content-between align-items-center" style={{ background: 'rgba(24, 24, 27, 0.8)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div className="d-flex align-items-center gap-3">
+                        <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style={{ width: '45px', height: '45px' }}>{activeTarget ? activeTarget[0] : '#'}</div>
+                        <div>
+                            <div className="fw-bold">{activeTarget || "Room: " + room}</div>
+                            <div className="d-flex align-items-center gap-1">
+                                <div className={lastSeen === "Online" ? "online-dot" : "bg-secondary rounded-circle"} style={{ width: '8px', height: '8px' }}></div>
+                                <small className="opacity-50">{lastSeen}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="d-flex gap-2">
+                        <button className="btn btn-dark rounded-circle" onClick={deleteHistory} title="Wipe History">🗑️</button>
+                        <button className="btn btn-dark rounded-circle" onClick={() => startCall("voice")}>📞</button>
+                        <button className="btn btn-dark rounded-circle" onClick={() => startCall("video")}>📹</button>
+                        <button className="btn btn-danger rounded-pill px-4 ms-2" onClick={() => setShowChat(false)}>DISCONNECT</button>
+                    </div>
                 </div>
 
-                <div className={`p-2 rounded-3 shadow-sm ${msg.author === username ? "bg-primary text-white" : "bg-dark text-white border border-secondary"}`} style={{ maxWidth: '75%', position: 'relative' }} onDoubleClick={() => setReplyTo(msg)}>
-                  <div className="small opacity-50 mb-1 d-flex justify-content-between" style={{ fontSize: "0.7rem" }}>
-                    <span>@{msg.author}</span>
-                    <span style={{ cursor: 'pointer' }} onClick={() => setReplyTo(msg)}>↩️</span>
-                  </div>
-
-                  {msg.replyTo && (
-                    <div className="bubble-reply text-truncate">
-                      <strong>@{msg.replyTo.author}:</strong> {msg.replyTo.message || "📷 Media"}
+                {isUploading && (
+                    <div style={{ height: "4px", background: 'rgba(255,255,255,0.05)' }}>
+                        <div style={{ height: '100%', background: '#a855f7', width: `${uploadProgress}%`, transition: '0.3s', boxShadow: '0 0 10px #a855f7' }}></div>
                     </div>
-                  )}
-                  
-                  {msg.image && (
-                    <div style={{ position: 'relative' }}>
-                      <img src={msg.image} alt="sent" className="img-fluid rounded mb-1" style={{maxHeight: '280px', border: '1px solid #444', cursor: 'pointer'}} onClick={() => window.open(msg.image, "_blank")} />
-                      <button onClick={() => downloadImage(msg.image)} className="btn btn-sm btn-dark opacity-75" style={{ position: 'absolute', bottom: '10px', right: '10px', fontSize: '0.7rem' }}>⬇️ Save</button>
-                    </div>
-                  )}
+                )}
 
-                  <div style={{ wordBreak: 'break-word' }}>{msg.message}</div>
-                  
-                  <div className="d-flex justify-content-between align-items-center mt-1">
-                    <div className="small opacity-50" style={{ fontSize: "0.6rem" }}>{msg.time}</div>
-                    {msg.author === username && (
-                      <div className="small" style={{ fontSize: "0.6rem", color: seenCounts[msg.id] ? '#00ffcc' : '#fff' }}>
-                        {seenCounts[msg.id] ? 'Read ✓✓' : 'Sent ✓'}
-                      </div>
+                {/* MESSAGES AREA */}
+                <div className="flex-grow-1 p-4 custom-scroll bg-black" ref={scrollRef} style={{ overflowY: 'auto' }}>
+                    <div className="text-center opacity-20 small mb-5">End-to-End Encrypted via Nexus Node</div>
+                    {messageList.map((msg, i) => (
+                        <div key={i} className={`d-flex mb-4 message-wrapper ${msg.author === username ? "justify-content-end" : "justify-content-start"}`}>
+                            <div className="reaction-picker">
+                                {reactionEmojis.map(emoji => (
+                                    <span key={emoji} className="fs-5" style={{ cursor: 'pointer' }} onClick={() => handleReaction(msg.id, emoji)}>{emoji}</span>
+                                ))}
+                            </div>
+
+                            <div className={`chat-bubble ${msg.author === username ? "bubble-mine" : "bubble-theirs"}`} style={{ maxWidth: '70%' }} onDoubleClick={() => setReplyTo(msg)}>
+                                <div className="d-flex justify-content-between gap-4 mb-1">
+                                    <span style={{ fontSize: "0.65rem", fontWeight: 'bold', opacity: 0.7 }}>@{msg.author}</span>
+                                    <span className="opacity-50" style={{ fontSize: "0.65rem" }} onClick={() => setReplyTo(msg)}>↩️</span>
+                                </div>
+
+                                {msg.replyTo && (
+                                    <div className="reply-box text-truncate">
+                                        <div className="fw-bold" style={{ fontSize: '0.6rem' }}>@{msg.replyTo.author}</div>
+                                        {msg.replyTo.message || "📷 Media"}
+                                    </div>
+                                )}
+                                
+                                {msg.image && (
+                                    <div className="position-relative mb-2">
+                                        <img src={msg.image} alt="sent" className="rounded-lg" style={{ width: '100%', maxHeight: '350px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => window.open(msg.image, "_blank")} />
+                                        <button onClick={() => downloadImage(msg.image)} className="btn btn-sm btn-dark blur-sm position-absolute bottom-2 right-2" style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '10px', fontSize: '0.6rem' }}>⬇️ Save</button>
+                                    </div>
+                                )}
+
+                                <div className="fs-6">{msg.message}</div>
+                                
+                                <div className="d-flex justify-content-end align-items-center gap-2 mt-1" style={{ fontSize: "0.6rem" }}>
+                                    <span className="opacity-50">{msg.time}</span>
+                                    {msg.author === username && (
+                                        <span style={{ color: seenCounts[msg.id] ? '#4ade80' : '#a1a1aa' }}>
+                                            {seenCounts[msg.id] ? '✓✓' : '✓'}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {reactions[msg.id] && (
+                                    <div className="reaction-chip" title={`By ${reactions[msg.id].user}`}>
+                                        {reactions[msg.id].emoji}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {typingStatus && <div className="text-primary small animate-pulse">● ● ● {typingStatus}</div>}
+                </div>
+
+                {/* FOOTER INPUT */}
+                <div className="p-3" style={{ background: 'rgba(24, 24, 27, 0.9)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    {replyTo && (
+                        <div className="d-flex justify-content-between align-items-center mb-3 p-2 rounded-lg" style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+                            <div className="small text-truncate">Replying to <span className="text-primary">@{replyTo.author}</span></div>
+                            <button className="btn btn-sm opacity-50" onClick={() => setReplyTo(null)}>✖</button>
+                        </div>
                     )}
-                  </div>
 
-                  {reactions[msg.id] && (
-                    <div className="reaction-chip" title={`By ${reactions[msg.id].user}`}>
-                      {reactions[msg.id].emoji}
+                    <div className="d-flex gap-2 mb-3">
+                        <button className="btn btn-dark rounded-pill px-3 btn-sm" style={{ border: '1px solid rgba(255,255,255,0.05)' }} onClick={() => setShowStickers(!showStickers)}>😊 Stickers</button>
+                        <label className="btn btn-dark rounded-pill px-3 btn-sm" style={{ border: '1px solid rgba(255,255,255,0.05)', cursor: isUploading ? 'not-allowed' : 'pointer' }}>
+                            {isUploading ? "⏳ Sending..." : "📷 Photo"}
+                            <input type="file" hidden accept="image/*" disabled={isUploading} onChange={handleImageUpload} />
+                        </label>
                     </div>
-                  )}
+                    
+                    {showStickers && (
+                        <div className="mb-3 p-3 glass-card d-flex flex-wrap gap-3 slide-up">
+                            {stickers.map(s => <span key={s} onClick={() => sendSticker(s)} className="fs-3" style={{ cursor: 'pointer', transition: '0.2s transform' }}>{s}</span>)}
+                        </div>
+                    )}
+
+                    <div className="d-flex gap-3 align-items-center">
+                        <input 
+                            type="text" 
+                            className="neon-input form-control flex-grow-1 py-3" 
+                            placeholder="Type transmission..." 
+                            value={currentMessage} 
+                            onChange={handleInputChange} 
+                            onKeyDown={(e) => e.key === "Enter" && sendMessage()} 
+                        />
+                        <button onClick={() => sendMessage()} className="btn btn-primary rounded-circle d-flex align-items-center justify-content-center shadow-lg" style={{ width: '55px', height: '55px', background: '#7c3aed' }}>
+                            🚀
+                        </button>
+                    </div>
                 </div>
-              </div>
-            ))}
-            {typingStatus && <div className="text-info small mb-2 animate-pulse">{typingStatus}</div>}
-          </div>
-
-          <div className="card-footer bg-dark border-top border-secondary">
-            {replyTo && (
-              <div className="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-secondary" style={{ fontSize: '0.8rem' }}>
-                <div className="text-truncate text-white">Replying to <strong>@{replyTo.author}</strong></div>
-                <button className="btn btn-sm text-white" onClick={() => setReplyTo(null)}>✖</button>
-              </div>
-            )}
-
-            <div className="d-flex gap-2 mb-2">
-                <button className="btn btn-sm btn-outline-light" onClick={() => setShowStickers(!showStickers)}>😊 Stickers</button>
-                <label className="btn btn-sm btn-outline-info mb-0" style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}>
-                  {isUploading ? "⏳ Uploading..." : "📷 Photo"}
-                  <input type="file" hidden accept="image/*" disabled={isUploading} onChange={handleImageUpload} />
-                </label>
             </div>
-            
-            {showStickers && (
-              <div className="mb-2 p-2 bg-dark rounded border border-secondary d-flex flex-wrap gap-2">
-                {stickers.map(s => <span key={s} onClick={() => sendSticker(s)} style={{ fontSize: '1.5rem', cursor: 'pointer' }}>{s}</span>)}
-              </div>
-            )}
-
-            <div className="input-group">
-              <input type="text" className="form-control bg-black text-white border-secondary" placeholder="Message..." value={currentMessage} onChange={handleInputChange} onKeyDown={(e) => e.key === "Enter" && sendMessage()} />
-              <button onClick={() => sendMessage()} className="btn btn-primary px-4">Send</button>
-            </div>
-          </div>
         </div>
       )}
     </div>
