@@ -29,14 +29,14 @@ const io = new Server(server, {
 
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'DELETE', 'PUT'] }));
 
-// ✨ Support for 2026 Ultra-HD Glassmorphism renders & Large Chat Images
+// Support for HD renders & Large Chat Images
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ limit: '200mb', extended: true }));
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "Nexus 2026 Server Active" }));
 
-// ================= MISSION: POST TO REELS (FIXED & SYNCED) =================
+// ================= MISSION: POST TO REELS =================
 app.post("/api/posts", async (req, res) => {
     try {
         const { user, username, fileUrl, mediaUrl, caption } = req.body;
@@ -68,21 +68,16 @@ app.post("/api/posts", async (req, res) => {
     }
 });
 
-// ✨ Dedicated Cloudinary Upload Route for Chat Images (SYNCED WITH CHAT.JS)
+// ✨ Dedicated Cloudinary Upload Route for Chat Images
 app.post("/api/messages/upload", async (req, res) => {
     try {
-        // Checking 'data' because Chat.js sends { data: reader.result }
         const imageData = req.body.data || req.body.image; 
-        
-        if (!imageData) {
-            return res.status(400).json({ error: "No image data provided" });
-        }
+        if (!imageData) return res.status(400).json({ error: "No image data provided" });
 
         const uploadResponse = await cloudinary.uploader.upload(imageData, {
             folder: "nexus_chat_images",
         });
 
-        // Returning 'url' so Chat.js can do: sendMessage(data.url)
         res.json({ url: uploadResponse.secure_url });
     } catch (err) {
         console.error("❌ Chat Image Upload Error:", err);
@@ -117,9 +112,10 @@ app.use("/api/posts", require("./routes/posts"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/messages", require("./routes/messages"));
 
-// ================= SOCKET LOGIC (PRESERVED) =================
+// ================= SOCKET LOGIC (DIRECT RINGING UPDATED) =================
 
 let onlineUsers = [];
+const userSocketMap = new Map(); // Store userId -> socketId
 
 io.on('connection', (socket) => {
   console.log('🟢 Socket connected', socket.id);
@@ -128,25 +124,30 @@ io.on('connection', (socket) => {
     if (!name || !userId) return;
     onlineUsers = onlineUsers.filter(u => u.userId !== userId);
     onlineUsers.push({ socketId: socket.id, name, userId });
+    userSocketMap.set(userId, socket.id); // Phonebook for direct rings
     io.emit('update_user_list', onlineUsers);
   });
 
-  socket.on('join_room', (room) => {
-    if (!room) return;
-    socket.join(room);
+  // ✨ INITIATE DIRECT RING
+  socket.on('initiate_call', ({ targetUserId, callerName, callType, roomID }) => {
+    const receiverSocketId = userSocketMap.get(targetUserId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('incoming_call_alert', {
+        callerName,
+        callType,
+        roomID
+      });
+    }
   });
 
-  socket.on('typing', (data) => {
-    socket.to(data.room).emit('display_typing', data);
-  });
+  socket.on('join_room', (room) => { if (room) socket.join(room); });
 
-  socket.on('stop_typing', (data) => {
-    socket.to(data.room).emit('hide_typing', data);
-  });
+  socket.on('typing', (data) => { socket.to(data.room).emit('display_typing', data); });
+
+  socket.on('stop_typing', (data) => { socket.to(data.room).emit('hide_typing', data); });
 
   socket.on('send_message', async (data) => {
     if (!data?.senderId || !data?.receiverId) return;
-
     try {
       const newMessage = new Message({
         sender: String(data.senderId),
@@ -156,45 +157,37 @@ io.on('connection', (socket) => {
         replyTo: data.replyTo, 
         timestamp: new Date()
       });
-
       const savedMessage = await newMessage.save();
       const broadcastData = {
         ...data,
         id: savedMessage._id.toString(),
-        time: new Date(savedMessage.timestamp).toLocaleTimeString([], {
-          hour: '2-digit', minute: '2-digit'
-        })
+        time: new Date(savedMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-
       io.to(data.room).emit('receive_message', broadcastData);
-    } catch (err) {
-      console.error("❌ DB SAVE ERROR:", err.message);
-    }
+    } catch (err) { console.error("❌ DB SAVE ERROR:", err.message); }
   });
 
-  socket.on('send_reaction', (data) => {
-    if (!data.room) return;
-    socket.to(data.room).emit('update_reaction', data);
-  });
+  socket.on('send_reaction', (data) => { if (data.room) socket.to(data.room).emit('update_reaction', data); });
 
-  socket.on('message_seen', (data) => {
-    if (!data?.room || !data?.id) return;
-    socket.to(data.room).emit('update_seen_status', data);
-  });
+  socket.on('message_seen', (data) => { if (data?.room && data?.id) socket.to(data.room).emit('update_seen_status', data); });
 
   socket.on('disconnect', () => {
     onlineUsers = onlineUsers.filter(u => u.socketId !== socket.id);
+    for (let [uid, sid] of userSocketMap.entries()) {
+        if (sid === socket.id) userSocketMap.delete(uid);
+    }
     io.emit('update_user_list', onlineUsers);
     console.log('🔴 Socket disconnected', socket.id);
   });
 });
 
-// ================= MISSION: THE AUDIO DB MUSIC ENGINE =================
+// ================= MISSION: THE AUDIO DB & SAAVN ENGINE =================
 app.get("/api/music/search", async (req, res) => {
     try {
         const { q } = req.query;
         if (!q) return res.json([]);
 
+        // Integrated Saavn Engine for 2026 High-speed streaming
         const streamRes = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(q)}`);
         const streamData = await streamRes.json();
 
@@ -209,13 +202,7 @@ app.get("/api/music/search", async (req, res) => {
             return res.json(results);
         }
 
-        res.json([{ 
-            title: `${q} (System Mix)`, 
-            artist: "Nexus Node", 
-            url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", 
-            cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400" 
-        }]);
-
+        res.json([{ title: `${q} (System Mix)`, artist: "Nexus Node", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400" }]);
     } catch (err) {
         console.error("❌ MUSIC HUB ERROR:", err.message);
         res.status(500).json({ error: "API unreachable" });
@@ -223,7 +210,6 @@ app.get("/api/music/search", async (req, res) => {
 });
 
 // ================= DATABASE =================
-
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("🔥 MongoDB Active - Nexus 2026 Core"))
   .catch(err => console.log("❌ MongoDB Error:", err.message));

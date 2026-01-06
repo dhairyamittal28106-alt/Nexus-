@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 
-// ✅ FIXED: Using backticks and uppercase variable
 const socket = io.connect(`${BACKEND_URL}`);
 
 function Chat() {
@@ -21,6 +20,10 @@ function Chat() {
   const [lastSeen, setLastSeen] = useState(""); 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // ✨ CALLING FEATURES
+  const [incomingCall, setIncomingCall] = useState(null);
+  const ringtoneRef = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3"));
 
   const [recentChats, setRecentChats] = useState(() => {
     const saved = localStorage.getItem("recent_nexus_chats");
@@ -37,6 +40,7 @@ function Chat() {
   const reactionEmojis = ["❤️", "👍", "🔥", "😂", "😮", "😢"];
 
   useEffect(() => {
+    // Register user on server for direct calling
     socket.emit("user_online", { name: username, userId: myId });
 
     socket.on("update_user_list", (users) => {
@@ -45,6 +49,13 @@ function Chat() {
         const target = users.find(u => u.userId === activeTargetId);
         setLastSeen(target ? "Online" : "Offline");
       }
+    });
+
+    // ✨ Listen for direct ring
+    socket.on("incoming_call_alert", (data) => {
+      setIncomingCall(data);
+      ringtoneRef.current.loop = true;
+      ringtoneRef.current.play().catch(e => console.log("Audio blocked by browser policy"));
     });
 
     socket.on("receive_message", (data) => {
@@ -80,6 +91,7 @@ function Chat() {
       socket.off("update_seen_status");
       socket.off("update_user_list");
       socket.off("update_reaction");
+      socket.off("incoming_call_alert");
     };
   }, [username, myId, activeTargetId]);
 
@@ -141,11 +153,11 @@ function Chat() {
     } catch (err) { console.error("History fetch failed:", err); }
   };
 
-  const joinRoom = (targetRoom, targetId = null, peerName = null) => {
+  const joinRoom = (targetRoom = null, targetId = null, peerName = null) => {
     const finalRoom = targetRoom || room;
     if (finalRoom !== "") {
       socket.emit("join_room", finalRoom);
-      setRoom(finalRoom);
+      setRoom(finalRoom); // Ensure room state is set
       setShowChat(true);
       setMessageList([]);
       if (targetId) fetchChatHistory(targetId, finalRoom, peerName); 
@@ -167,7 +179,6 @@ function Chat() {
     reader.onloadend = async () => {
       try {
         setUploadProgress(50);
-        // ✅ FIXED: Using backticks and uppercase BACKEND_URL
         const response = await fetch(`${BACKEND_URL}/api/messages/upload`, {
           method: "POST", body: JSON.stringify({ data: reader.result }), headers: { "Content-Type": "application/json" },
         });
@@ -180,9 +191,11 @@ function Chat() {
     e.target.value = null;
   };
 
+  // ✅ FIXED: Support for both Room and DM sending
   const sendMessage = async (imgUrl = null) => {
     if (!currentMessage.trim() && !imgUrl) return;
-    if (!room || !activeTargetId) return;
+    if (!room) return alert("Please join a room or select a user first!");
+    
     socket.emit("stop_typing", { room });
 
     const data = {
@@ -190,7 +203,7 @@ function Chat() {
       room: String(room),
       author: String(username),
       senderId: myId, 
-      receiverId: activeTargetId, 
+      receiverId: activeTargetId || "ROOM_MSG", // Fallback for squad portal
       message: imgUrl ? "" : String(currentMessage),
       image: imgUrl,
       replyTo: replyTo, 
@@ -222,11 +235,17 @@ function Chat() {
     else socket.emit("stop_typing", { room });
   };
 
+  // ✅ FIXED: Support for Room stickers
   const sendSticker = (sticker) => {
-    if (!room || !activeTargetId) return;
+    if (!room) return;
     const data = {
-      id: username + Date.now(), room: String(room), author: String(username),
-      senderId: myId, receiverId: activeTargetId, message: String(sticker), image: null,
+      id: username + Date.now(), 
+      room: String(room), 
+      author: String(username),
+      senderId: myId, 
+      receiverId: activeTargetId || "ROOM_MSG", 
+      message: String(sticker), 
+      image: null,
       time: String(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     };
     socket.emit("send_message", data);
@@ -239,9 +258,31 @@ function Chat() {
   };
 
   const startCall = (mode) => {
-    if (!room) return alert("Join a room first");
-    const callUrl = `https://meet.jit.si/NEXUS-${mode}-${encodeURIComponent(room)}`;
+    if (!activeTargetId) return alert("Select a lifeform from the feed first!");
+    const callRoom = `NEXUS-${mode}-${Date.now()}`;
+    
+    socket.emit("initiate_call", {
+      targetUserId: activeTargetId,
+      callerName: username,
+      callType: mode,
+      roomID: callRoom
+    });
+
+    const callUrl = `https://meet.jit.si/${callRoom}`;
     window.open(callUrl, "_blank");
+  };
+
+  const acceptCall = () => {
+    ringtoneRef.current.pause();
+    ringtoneRef.current.currentTime = 0;
+    window.open(`https://meet.jit.si/${incomingCall.roomID}`, "_blank");
+    setIncomingCall(null);
+  };
+
+  const declineCall = () => {
+    ringtoneRef.current.pause();
+    ringtoneRef.current.currentTime = 0;
+    setIncomingCall(null);
   };
 
   return (
@@ -253,7 +294,7 @@ function Chat() {
         .chat-bubble { border-radius: 18px; padding: 12px 16px; position: relative; animation: slideUp 0.3s ease-out; }
         .bubble-mine { background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; border-bottom-right-radius: 4px; }
         .bubble-theirs { background: rgba(39, 39, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-bottom-left-radius: 4px; }
-        .recent-item { transition: 0.3s; border-radius: 16px; border: 1px solid transparent; }
+        .recent-item { transition: 0.3s; border-radius: 16px; border: 1px solid transparent; cursor: pointer; }
         .recent-item:hover { background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3); transform: translateX(5px); }
         .reaction-picker { background: rgba(24, 24, 27, 0.9); backdrop-filter: blur(10px); border-radius: 30px; padding: 5px 15px; display: none; position: absolute; top: -45px; z-index: 100; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .message-wrapper:hover .reaction-picker { display: flex; gap: 12px; }
@@ -263,10 +304,27 @@ function Chat() {
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .reply-box { background: rgba(168, 85, 247, 0.1); border-left: 3px solid #a855f7; padding: 5px 10px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 8px; }
+        .call-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
       `}</style>
+
+      {/* ✨ INCOMING CALL UI */}
+      {incomingCall && (
+        <div className="call-modal">
+          <div className="glass-card p-5 text-center shadow-2xl" style={{ border: '2px solid #a855f7', width: '350px' }}>
+             <div className="animate-bounce mb-4" style={{ fontSize: '60px' }}>📡</div>
+             <h3 className="fw-bold">Incoming {incomingCall.callType}</h3>
+             <h5 className="text-primary mb-4">@{incomingCall.callerName}</h5>
+             <div className="d-flex gap-3">
+                <button className="btn btn-success w-100 py-3 rounded-pill fw-bold" onClick={acceptCall}>ACCEPT</button>
+                <button className="btn btn-danger w-100 py-3 rounded-pill fw-bold" onClick={declineCall}>DECLINE</button>
+             </div>
+          </div>
+        </div>
+      )}
 
       {!showChat ? (
         <div className="row justify-content-center g-4 px-3">
+          {/* SQUAD PORTAL */}
           <div className="col-lg-5">
             <div className="glass-card p-4 shadow-2xl h-100">
               <div className="d-flex align-items-center gap-3 mb-4">
@@ -290,13 +348,14 @@ function Chat() {
                   <button onClick={() => { navigator.clipboard.writeText(room); setCopySuccess("Copied!"); }} className="btn btn-dark w-50 py-2" style={{ borderRadius: '12px', border: '1px solid #3f3f46' }}>{copySuccess || "🔗 Link"}</button>
                 </div>
                 
-                <button onClick={() => joinRoom()} className="btn btn-primary w-100 py-3 fw-bold shadow-lg" style={{ background: 'linear-gradient(90deg, #6366f1, #a855f7)', border: 'none', borderRadius: '16px' }}>
+                <button onClick={() => { if(room) joinRoom(); else alert("Enter Room ID"); }} className="btn btn-primary w-100 py-3 fw-bold shadow-lg" style={{ background: 'linear-gradient(90deg, #6366f1, #a855f7)', border: 'none', borderRadius: '16px' }}>
                   INITIALIZE CONNECTION
                 </button>
               </div>
             </div>
           </div>
 
+          {/* ONLINE & RECENT */}
           <div className="col-lg-5">
             <div className="glass-card p-4 shadow-2xl h-100">
               <h5 className="fw-bold mb-4 d-flex align-items-center gap-2">
@@ -335,8 +394,10 @@ function Chat() {
           </div>
         </div>
       ) : (
+        /* CHAT INTERFACE */
         <div className="container py-2">
             <div className="glass-card mx-auto overflow-hidden shadow-2xl" style={{ maxWidth: "1000px", height: "85vh", display: 'flex', flexDirection: 'column' }}>
+                {/* HEADER */}
                 <div className="p-3 d-flex justify-content-between align-items-center" style={{ background: 'rgba(24, 24, 27, 0.8)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <div className="d-flex align-items-center gap-3">
                         <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style={{ width: '45px', height: '45px' }}>{activeTarget ? activeTarget[0] : '#'}</div>
@@ -349,10 +410,10 @@ function Chat() {
                         </div>
                     </div>
                     <div className="d-flex gap-2">
-                        <button className="btn btn-dark rounded-circle" onClick={deleteHistory} title="Wipe History">🗑️</button>
+                        {activeTargetId && <button className="btn btn-dark rounded-circle" onClick={deleteHistory} title="Wipe History">🗑️</button>}
                         <button className="btn btn-dark rounded-circle" onClick={() => startCall("voice")}>📞</button>
                         <button className="btn btn-dark rounded-circle" onClick={() => startCall("video")}>📹</button>
-                        <button className="btn btn-danger rounded-pill px-4 ms-2" onClick={() => setShowChat(false)}>DISCONNECT</button>
+                        <button className="btn btn-danger rounded-pill px-4 ms-2" onClick={() => { setShowChat(false); setActiveTargetId(null); setActiveTarget(null); }}>EXIT</button>
                     </div>
                 </div>
 
@@ -362,6 +423,7 @@ function Chat() {
                     </div>
                 )}
 
+                {/* MESSAGES AREA */}
                 <div className="flex-grow-1 p-4 custom-scroll bg-black" ref={scrollRef} style={{ overflowY: 'auto' }}>
                     <div className="text-center opacity-20 small mb-5">End-to-End Encrypted via Nexus Node</div>
                     {messageList.map((msg, i) => (
@@ -375,7 +437,7 @@ function Chat() {
                             <div className={`chat-bubble ${msg.author === username ? "bubble-mine" : "bubble-theirs"}`} style={{ maxWidth: '70%' }} onDoubleClick={() => setReplyTo(msg)}>
                                 <div className="d-flex justify-content-between gap-4 mb-1">
                                     <span style={{ fontSize: "0.65rem", fontWeight: 'bold', opacity: 0.7 }}>@{msg.author}</span>
-                                    <span className="opacity-50" style={{ fontSize: "0.65rem" }} onClick={() => setReplyTo(msg)}>↩️</span>
+                                    <span className="opacity-50" style={{ fontSize: "0.65rem", cursor: 'pointer' }} onClick={() => setReplyTo(msg)}>↩️</span>
                                 </div>
 
                                 {msg.replyTo && (
@@ -414,6 +476,7 @@ function Chat() {
                     {typingStatus && <div className="text-primary small animate-pulse">● ● ● {typingStatus}</div>}
                 </div>
 
+                {/* FOOTER INPUT */}
                 <div className="p-3" style={{ background: 'rgba(24, 24, 27, 0.9)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                     {replyTo && (
                         <div className="d-flex justify-content-between align-items-center mb-3 p-2 rounded-lg" style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
