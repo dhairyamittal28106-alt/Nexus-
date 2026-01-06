@@ -33,6 +33,7 @@ const Reels = () => {
     const [profilePic, setProfilePic] = useState(() => localStorage.getItem('profile_pic') || "");
     const [tempUsername, setTempUsername] = useState(username);
 
+    // ✨ ACTIVITY COLLECTIONS STATE
     const [localAIStorage, setLocalAIStorage] = useState(() => {
         const saved = localStorage.getItem('nexus_ai_cache');
         return saved ? JSON.parse(saved) : { likes: {}, comments: {} };
@@ -62,7 +63,6 @@ const Reels = () => {
 
     const fetchReels = async () => {
         try {
-            // ✅ FIXED: Using backticks and uppercase BACKEND_URL
             const res = await fetch(`${BACKEND_URL}/api/posts/feed`);
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -183,7 +183,6 @@ const Reels = () => {
                 return;
             }
 
-            // ✅ FIXED: Using backticks and uppercase BACKEND_URL
             const dbRes = await fetch(`${BACKEND_URL}/api/posts/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -208,11 +207,17 @@ const Reels = () => {
             setShowHeart(post._id);
             setTimeout(() => setShowHeart(null), 1000);
         }
-        if (post._id.startsWith("ai_")) {
-            const currentLikes = localAIStorage.likes[post._id] || post.likes;
-            const newLikes = currentLikes.includes(username) ? currentLikes.filter(u => u !== username) : [...currentLikes, username];
-            setLocalAIStorage(prev => ({ ...prev, likes: { ...prev.likes, [post._id]: newLikes } }));
-        }
+
+        // Add to local activity cache for Settings Collection
+        const currentLikes = localAIStorage.likes[post._id] || post.likes || [];
+        const isLiked = currentLikes.includes(username);
+        const newLikes = isLiked ? currentLikes.filter(u => u !== username) : [...currentLikes, username];
+        
+        setLocalAIStorage(prev => ({ 
+            ...prev, 
+            likes: { ...prev.likes, [post._id]: newLikes } 
+        }));
+
         await fetch(`${BACKEND_URL}/api/posts/like/${post._id}`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username })
@@ -224,10 +229,15 @@ const Reels = () => {
         e.preventDefault();
         if (!newComment.trim() || !showComments) return;
         const targetId = showComments;
-        if (targetId.startsWith("ai_")) {
-            const currentComments = localAIStorage.comments[targetId] || [];
-            setLocalAIStorage(prev => ({ ...prev, comments: { ...prev.comments, [targetId]: [...currentComments, { username, text: newComment, timestamp: new Date() }] } }));
-        }
+        
+        const currentComments = localAIStorage.comments[targetId] || [];
+        const newCommentObj = { username, text: newComment, timestamp: new Date() };
+        
+        setLocalAIStorage(prev => ({ 
+            ...prev, 
+            comments: { ...prev.comments, [targetId]: [...currentComments, newCommentObj] } 
+        }));
+
         await fetch(`${BACKEND_URL}/api/posts/comment/${targetId}`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, text: newComment })
@@ -290,8 +300,8 @@ const Reels = () => {
                             <div onClick={() => setShowSettings(true)} style={{ cursor: 'pointer', background: theme.sidebarBg, padding: '10px', borderRadius: '50%', border: `1px solid ${theme.border}`, color: theme.text }}>⚙️</div>
                             <div onClick={() => handleDownload(post.fileUrl, `nexus_${post._id}.mp4`)} style={{ cursor: 'pointer', fontSize: '32px' }}>📥</div>
                             {post.user === username && !post._id.startsWith("ai_") && <div onClick={() => handleDelete(post._id)} style={{ cursor: 'pointer', fontSize: '28px' }}>🗑️</div>}
-                            <div onClick={() => handleLike(post)} style={{ textAlign: 'center', cursor: 'pointer' }}><div style={{ fontSize: '32px' }}>{post.likes?.includes(username) ? '❤️' : '🤍'}</div><span style={{ color: 'white', fontWeight: 'bold' }}>{post.likes?.length || 0}</span></div>
-                            <div onClick={() => setShowComments(post._id)} style={{ textAlign: 'center', cursor: 'pointer' }}><div style={{ fontSize: '32px' }}>💬</div><span style={{ color: 'white', fontWeight: 'bold' }}>{post.comments?.length || 0}</span></div>
+                            <div onClick={() => handleLike(post)} style={{ textAlign: 'center', cursor: 'pointer' }}><div style={{ fontSize: '32px' }}>{(localAIStorage.likes[post._id] || post.likes)?.includes(username) ? '❤️' : '🤍'}</div><span style={{ color: 'white', fontWeight: 'bold' }}>{(localAIStorage.likes[post._id] || post.likes)?.length || 0}</span></div>
+                            <div onClick={() => setShowComments(post._id)} style={{ textAlign: 'center', cursor: 'pointer' }}><div style={{ fontSize: '32px' }}>💬</div><span style={{ color: 'white', fontWeight: 'bold' }}>{(localAIStorage.comments[post._id] || post.comments)?.length || 0}</span></div>
                             <div onClick={() => { navigator.clipboard.writeText(post.fileUrl); alert("Copied!"); }} style={{ fontSize: '32px', cursor: 'pointer' }}>✈️</div>
                         </div>
 
@@ -305,6 +315,7 @@ const Reels = () => {
 
             <button onClick={() => setShowUpload(true)} style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 999, width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #bc1888)', border: 'none', color: 'white', fontSize: '30px' }}>+</button>
 
+            {/* ✨ UPDATED SETTINGS WITH COLLECTIONS */}
             {showSettings && (
                 <div style={{ position: 'fixed', inset: 0, background: theme.bg, zIndex: 10001, padding: '40px', color: theme.text, overflowY: 'auto' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: `1px solid ${theme.border}`, paddingBottom: '20px' }}>
@@ -314,6 +325,7 @@ const Reels = () => {
                             <button onClick={() => setShowSettings(false)} className="btn btn-danger">✕ Close</button>
                         </div>
                     </div>
+
                     <div style={{ background: theme.sidebarBg, padding: '25px', borderRadius: '20px', marginBottom: '30px', border: `1px solid ${theme.border}` }}>
                         <div style={{ display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <div style={{ position: 'relative' }}>
@@ -328,6 +340,42 @@ const Reels = () => {
                                     <input className="form-control" style={{ background: isDarkMode ? '#222' : '#eee', color: theme.text }} value={tempUsername} onChange={(e) => setTempUsername(e.target.value)} />
                                     <button className="btn" style={{ background: theme.accent, color: 'white' }} onClick={() => setUsername(tempUsername)}>Update</button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ✨ NEW: ACTIVITY COLLECTIONS SECTION */}
+                    <div className="row g-4 mt-2">
+                        <div className="col-md-6">
+                            <h5 className="mb-3">❤️ Liked Reels</h5>
+                            <div style={{ background: theme.sidebarBg, borderRadius: '20px', padding: '20px', height: '300px', overflowY: 'auto', border: `1px solid ${theme.border}` }}>
+                                {Object.keys(localAIStorage.likes).filter(id => localAIStorage.likes[id].includes(username)).length === 0 ? (
+                                    <p className="text-muted">No likes yet.</p>
+                                ) : (
+                                    Object.keys(localAIStorage.likes).filter(id => localAIStorage.likes[id].includes(username)).map(id => {
+                                        const p = posts.find(post => post._id === id);
+                                        return (
+                                            <div key={id} className="d-flex align-items-center gap-3 mb-3 p-2 rounded" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                                                <img src={p?.fileUrl || 'https://via.placeholder.com/40'} style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} alt="thumb" />
+                                                <div className="small text-truncate">{p?.caption || "Liked Reel"}</div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                        <div className="col-md-6">
+                            <h5 className="mb-3">💬 Your Comments</h5>
+                            <div style={{ background: theme.sidebarBg, borderRadius: '20px', padding: '20px', height: '300px', overflowY: 'auto', border: `1px solid ${theme.border}` }}>
+                                {Object.keys(localAIStorage.comments).map(id => (
+                                    localAIStorage.comments[id].filter(c => c.username === username).map((c, i) => (
+                                        <div key={`${id}-${i}`} className="mb-3 p-2 rounded" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                                            <div style={{ fontSize: '10px', color: theme.accent }}>Reel: {posts.find(p => p._id === id)?.caption.substring(0, 20)}...</div>
+                                            <div className="small">{c.text}</div>
+                                        </div>
+                                    ))
+                                ))}
+                                {Object.values(localAIStorage.comments).flat().filter(c => c.username === username).length === 0 && <p className="text-muted">No comments yet.</p>}
                             </div>
                         </div>
                     </div>
@@ -367,7 +415,7 @@ const Reels = () => {
                 <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: '55vh', background: theme.card, zIndex: 5000, padding: '25px', borderTop: `1px solid ${theme.border}`, borderTopLeftRadius: '25px', borderTopRightRadius: '25px', color: theme.text }}>
                     <div className="d-flex justify-content-between mb-3"><h6>Comments</h6><button onClick={() => setShowComments(null)} style={{ color: '#ff4d4d', background: 'none', border: 'none' }}>✕</button></div>
                     <div style={{ overflowY: 'auto', height: '30vh', marginBottom: '20px' }}>
-                        {posts.find(p => p._id === showComments)?.comments?.map((c, i) => (
+                        {(localAIStorage.comments[showComments] || posts.find(p => p._id === showComments)?.comments)?.map((c, i) => (
                             <div key={i} className="mb-3"><span style={{ color: theme.accent, fontWeight: 'bold' }}>@{c.username}:</span> {c.text}</div>
                         ))}
                     </div>
