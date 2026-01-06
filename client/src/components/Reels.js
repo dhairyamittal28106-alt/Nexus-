@@ -256,7 +256,7 @@ const Reels = () => {
         <div style={{ backgroundColor: theme.bg, height: '100vh', position: 'relative', overflow: 'hidden', transition: '0.3s' }}>
             
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '60px', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', zIndex: 1000, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <h3 style={{ color: theme.accent, margin: 0, fontWeight: 'bold', letterSpacing: '1px' }}>NEXUS AI</h3>
+                <h3 style={{ color: theme.accent, margin: 0, fontWeight: 'bold', letterSpacing: '1px' }}>NEXUS</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>@{username}</span>

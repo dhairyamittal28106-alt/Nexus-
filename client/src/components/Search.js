@@ -13,7 +13,7 @@ const Search = () => {
     // ✨ MEDIA DATA (For Songs and Filters Search)
     const [songs] = useState([
         { title: "Midnight City", artist: "M83", type: "song" },
-        { title: "Neon Lights", artist: "Nexus AI", type: "song" },
+        { title: "Neon Lights", artist: "NEXUS", type: "song" },
         { title: "Solar Wind", artist: "Astro", type: "song" }
     ]);
 

@@ -37,7 +37,7 @@ const Navbar = () => {
             <div className="container-fluid">
                 <Link className="navbar-brand fw-bold text-white d-flex align-items-center" to="/">
                     <span style={{ background: 'linear-gradient(90deg, #6366f1, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.5rem' }}>
-                        NEXUS AI
+                        NEXUS
                     </span>
                 </Link>
 
