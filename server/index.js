@@ -13,7 +13,7 @@ const Post = require('./models/Post');
 const app = express();
 const server = http.createServer(app);
 
-// ✨ Cloudinary Config
+
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.API_KEY,
@@ -29,14 +29,14 @@ const io = new Server(server, {
 
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'DELETE', 'PUT'] }));
 
-// Support for HD renders & Large Chat Images - Ensuring limits are set for 2026 standards
+
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ limit: '200mb', extended: true }));
 
-// Health check
+
 app.get("/", (req, res) => res.json({ status: "Nexus 2026 Server Active" }));
 
-// ================= MISSION: POST TO REELS =================
+
 app.post("/api/posts", async (req, res) => {
     try {
         const { user, username, fileUrl, mediaUrl, caption } = req.body;
@@ -68,7 +68,7 @@ app.post("/api/posts", async (req, res) => {
     }
 });
 
-// ✨ Dedicated Cloudinary Upload Route for Chat Images
+
 app.post("/api/messages/upload", async (req, res) => {
     try {
         const imageData = req.body.data || req.body.image; 
@@ -85,7 +85,7 @@ app.post("/api/messages/upload", async (req, res) => {
     }
 });
 
-// ✨ Delete History Route
+
 app.delete("/api/messages/history/:myId/:targetId", async (req, res) => {
     try {
         const { myId, targetId } = req.params;
@@ -99,7 +99,7 @@ app.delete("/api/messages/history/:myId/:targetId", async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ✨ User Lookup Route
+
 app.get("/api/auth/user/:name", async (req, res) => {
     try {
         const user = await User.findOne({ name: req.params.name });
@@ -107,15 +107,15 @@ app.get("/api/auth/user/:name", async (req, res) => {
     } catch (err) { res.status(500).json({}); }
 });
 
-// Other Routes
+
 app.use("/api/posts", require("./routes/posts"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/messages", require("./routes/messages"));
 
-// ================= SOCKET LOGIC (SQUAD PORTAL & DIRECT CALLING FIXED) =================
+
 
 let onlineUsers = [];
-const userSocketMap = new Map(); // Store userId -> socketId for direct calling
+const userSocketMap = new Map(); 
 
 io.on('connection', (socket) => {
   console.log('🟢 Socket connected', socket.id);
@@ -124,11 +124,11 @@ io.on('connection', (socket) => {
     if (!name || !userId) return;
     onlineUsers = onlineUsers.filter(u => u.userId !== userId);
     onlineUsers.push({ socketId: socket.id, name, userId });
-    userSocketMap.set(userId, socket.id); // Phonebook for direct rings
+    userSocketMap.set(userId, socket.id); 
     io.emit('update_user_list', onlineUsers);
   });
 
-  // ✨ INITIATE DIRECT RING (SIREN PROTOCOL)
+  
   socket.on('initiate_call', ({ targetUserId, callerName, callType, roomID }) => {
     const receiverSocketId = userSocketMap.get(targetUserId);
     if (receiverSocketId) {
@@ -146,13 +146,13 @@ io.on('connection', (socket) => {
 
   socket.on('stop_typing', (data) => { socket.to(data.room).emit('hide_typing', data); });
 
-  // ================= FIXED SEND_MESSAGE LOGIC =================
+  
   socket.on('send_message', async (data) => {
     if (!data || !data.room) return;
 
     try {
-      // Logic: Save to MongoDB only if it's a valid Private DM
-      // Squad Portal messages use "ROOM_MSG" which crashes MongoDB BSON validation
+      
+      
       if (data.receiverId && data.receiverId !== "ROOM_MSG" && data.receiverId.length === 24) {
         const newMessage = new Message({
           sender: String(data.senderId),
@@ -166,11 +166,11 @@ io.on('connection', (socket) => {
         const savedMessage = await newMessage.save();
         data.id = savedMessage._id.toString();
       } else {
-        // If it's a Squad Portal message, assign a transient Virtual ID
+        
         data.id = "SQUAD_" + Date.now();
       }
 
-      // Live Broadcast to the room (Handles both Squad Rooms and DM Rooms)
+      
       const broadcastData = {
         ...data,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -180,7 +180,7 @@ io.on('connection', (socket) => {
 
     } catch (err) {
       console.error("❌ DB SAVE ERROR:", err.message);
-      // Fallback: Broadcast even if DB fails so UI doesn't freeze
+      
       io.to(String(data.room)).emit('receive_message', data);
     }
   });
@@ -199,13 +199,13 @@ io.on('connection', (socket) => {
   });
 });
 
-// ================= MISSION: THE AUDIO DB & SAAVN ENGINE =================
+
 app.get("/api/music/search", async (req, res) => {
     try {
         const { q } = req.query;
         if (!q) return res.json([]);
 
-        // Integrated Saavn Engine for 2026 High-speed streaming
+        
         const streamRes = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(q)}`);
         const streamData = await streamRes.json();
 
@@ -233,12 +233,12 @@ app.get("/api/music/search", async (req, res) => {
     }
 });
 
-// ================= DATABASE CONNECTION =================
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("🔥 MongoDB Active - Nexus 2026 Core Engine Connected"))
   .catch(err => console.log("❌ MongoDB Error:", err.message));
 
-// Server Initialization
+
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
     console.log(`🚀 Server on Port ${PORT} - READY FOR BIG 2026 LAUNCH`);

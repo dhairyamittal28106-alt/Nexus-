@@ -7,7 +7,7 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
-// 1. SMART REPLY
+
 router.post('/suggest', async (req, res) => {
     const { messageHistory } = req.body;
     try {
@@ -22,7 +22,7 @@ router.post('/suggest', async (req, res) => {
     } catch (error) { res.status(500).json({ reply: "Cool!" }); }
 });
 
-// 2. FACT CHECK (LIE DETECTOR)
+
 router.post('/factcheck', async (req, res) => {
     const { text } = req.body;
     try {

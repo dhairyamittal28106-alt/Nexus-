@@ -24,7 +24,7 @@ const Signup = () => {
             if (json.success) {
                 localStorage.setItem('token', json.authToken);
                 localStorage.setItem('username', json.username || creds.name);
-                // ✨ FIX: Critical line added to allow Follow/Search to work
+                
                 localStorage.setItem('myId', json.myId); 
                 navigate("/"); 
             } else {

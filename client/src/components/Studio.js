@@ -37,7 +37,7 @@ function Studio() {
     const imageData = canvas.toDataURL("image/png");
     
     try {
-      // ✅ FIXED: Using backticks (``) and uppercase BACKEND_URL
+      
       const res = await fetch(`${BACKEND_URL}/api/posts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

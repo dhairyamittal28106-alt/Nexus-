@@ -21,7 +21,7 @@ function Chat() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   
-  // ✨ CALLING FEATURES
+  
   const [incomingCall, setIncomingCall] = useState(null);
   const ringtoneRef = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3"));
 
@@ -40,7 +40,7 @@ function Chat() {
   const reactionEmojis = ["❤️", "👍", "🔥", "😂", "😮", "😢"];
 
   useEffect(() => {
-    // Register user on server for direct calling
+    
     socket.emit("user_online", { name: username, userId: myId });
 
     socket.on("update_user_list", (users) => {
@@ -51,7 +51,7 @@ function Chat() {
       }
     });
 
-    // ✨ Listen for direct ring
+    
     socket.on("incoming_call_alert", (data) => {
       setIncomingCall(data);
       ringtoneRef.current.loop = true;
@@ -157,7 +157,7 @@ function Chat() {
     const finalRoom = targetRoom || room;
     if (finalRoom !== "") {
       socket.emit("join_room", finalRoom);
-      setRoom(finalRoom); // Ensure room state is set
+      setRoom(finalRoom); 
       setShowChat(true);
       setMessageList([]);
       if (targetId) fetchChatHistory(targetId, finalRoom, peerName); 
@@ -191,7 +191,7 @@ function Chat() {
     e.target.value = null;
   };
 
-  // ✅ FIXED: Support for both Room and DM sending
+  
   const sendMessage = async (imgUrl = null) => {
     if (!currentMessage.trim() && !imgUrl) return;
     if (!room) return alert("Please join a room or select a user first!");
@@ -203,7 +203,7 @@ function Chat() {
       room: String(room),
       author: String(username),
       senderId: myId, 
-      receiverId: activeTargetId || "ROOM_MSG", // Fallback for squad portal
+      receiverId: activeTargetId || "ROOM_MSG", 
       message: imgUrl ? "" : String(currentMessage),
       image: imgUrl,
       replyTo: replyTo, 
@@ -235,7 +235,7 @@ function Chat() {
     else socket.emit("stop_typing", { room });
   };
 
-  // ✅ FIXED: Support for Room stickers
+  
   const sendSticker = (sticker) => {
     if (!room) return;
     const data = {
@@ -307,7 +307,7 @@ function Chat() {
         .call-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
       `}</style>
 
-      {/* ✨ INCOMING CALL UI */}
+       
       {incomingCall && (
         <div className="call-modal">
           <div className="glass-card p-5 text-center shadow-2xl" style={{ border: '2px solid #a855f7', width: '350px' }}>
@@ -324,7 +324,7 @@ function Chat() {
 
       {!showChat ? (
         <div className="row justify-content-center g-4 px-3">
-          {/* SQUAD PORTAL */}
+           
           <div className="col-lg-5">
             <div className="glass-card p-4 shadow-2xl h-100">
               <div className="d-flex align-items-center gap-3 mb-4">
@@ -355,7 +355,7 @@ function Chat() {
             </div>
           </div>
 
-          {/* ONLINE & RECENT */}
+           
           <div className="col-lg-5">
             <div className="glass-card p-4 shadow-2xl h-100">
               <h5 className="fw-bold mb-4 d-flex align-items-center gap-2">
@@ -394,10 +394,10 @@ function Chat() {
           </div>
         </div>
       ) : (
-        /* CHAT INTERFACE */
+         
         <div className="container py-2">
             <div className="glass-card mx-auto overflow-hidden shadow-2xl" style={{ maxWidth: "1000px", height: "85vh", display: 'flex', flexDirection: 'column' }}>
-                {/* HEADER */}
+                 
                 <div className="p-3 d-flex justify-content-between align-items-center" style={{ background: 'rgba(24, 24, 27, 0.8)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <div className="d-flex align-items-center gap-3">
                         <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style={{ width: '45px', height: '45px' }}>{activeTarget ? activeTarget[0] : '#'}</div>
@@ -423,7 +423,7 @@ function Chat() {
                     </div>
                 )}
 
-                {/* MESSAGES AREA */}
+                 
                 <div className="flex-grow-1 p-4 custom-scroll bg-black" ref={scrollRef} style={{ overflowY: 'auto' }}>
                     <div className="text-center opacity-20 small mb-5">End-to-End Encrypted via Nexus Node</div>
                     {messageList.map((msg, i) => (
@@ -476,7 +476,7 @@ function Chat() {
                     {typingStatus && <div className="text-primary small animate-pulse">● ● ● {typingStatus}</div>}
                 </div>
 
-                {/* FOOTER INPUT */}
+                 
                 <div className="p-3" style={{ background: 'rgba(24, 24, 27, 0.9)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                     {replyTo && (
                         <div className="d-flex justify-content-between align-items-center mb-3 p-2 rounded-lg" style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>

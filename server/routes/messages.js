@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const Message = require('../models/Message');
 
-// GET chat history between two users
+
 router.get('/:userId/:peerId', async (req, res) => {
   try {
     const { userId, peerId } = req.params;

@@ -7,7 +7,7 @@ function Jukebox({ setActiveSong }) {
   const [isSearching, setIsSearching] = useState(false);
   const [source, setSource] = useState("yt");
   
-  // 🔊 Scratch Sound Reference
+  
   const scratchAudioRef = useRef(null);
 
   const sourceConfig = {
@@ -33,15 +33,15 @@ function Jukebox({ setActiveSong }) {
 
   const activeConfig = sourceConfig[source] || sourceConfig["yt"];
 
-  // ✨ MISSION: Record Scratch Logic
+  
   const playScratch = () => {
     if (scratchAudioRef.current) {
-      scratchAudioRef.current.currentTime = 0; // Reset to start
+      scratchAudioRef.current.currentTime = 0; 
       scratchAudioRef.current.play().catch(e => console.log("Waiting for user interaction to play sound"));
     }
   };
 
-  // Trigger scratch whenever the source (platform) is changed
+  
   useEffect(() => {
     playScratch();
   }, [source]);
@@ -73,7 +73,7 @@ function Jukebox({ setActiveSong }) {
   };
 
   const handlePlay = (song) => {
-    playScratch(); // Scratch when a new song is selected from the list
+    playScratch(); 
     setCurrentLocalSong(song);
     if (setActiveSong) setActiveSong(song); 
   };
@@ -81,7 +81,7 @@ function Jukebox({ setActiveSong }) {
   return (
     <div className="container mt-5 pt-5 min-vh-100" style={{ color: 'white' }}>
       
-      {/* 📀 Hidden Audio element for the Scratch effect */}
+       
       <audio 
         ref={scratchAudioRef} 
         src="https://www.zapsplat.com/wp-content/uploads/2015/sound-effects-one/audio_hero_RecordScratch_DIGIJ02_57_311.mp3" 

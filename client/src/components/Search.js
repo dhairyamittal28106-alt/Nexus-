@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from "../config";
 const Search = () => {
     const [query, setQuery] = useState("");
-    const [searchType, setSearchType] = useState("people"); // people, songs, or filters
+    const [searchType, setSearchType] = useState("people"); 
     const [results, setResults] = useState([]); 
     const [suggestions, setSuggestions] = useState([]); 
     const [pendingRequests, setPendingRequests] = useState([]); 
     const [friends, setFriends] = useState([]); 
     const [loading, setLoading] = useState(false);
     
-    // ✨ MEDIA DATA (For Songs and Filters Search)
+    
     const [songs] = useState([
         { title: "Midnight City", artist: "M83", type: "song" },
         { title: "Neon Lights", artist: "NEXUS", type: "song" },
@@ -84,7 +84,7 @@ const Search = () => {
         } catch (err) { setSuggestions([]); }
     };
 
-    // ✨ UPDATED SEARCH LOGIC
+    
     const handleSearch = async (e) => {
         const value = e.target.value;
         setQuery(value);
@@ -131,7 +131,7 @@ const Search = () => {
 
     return (
         <div className="container mt-5 pt-5">
-            {/* 🔔 PENDING REQUESTS PANEL */}
+             
             {pendingRequests.length > 0 && (
                 <div className="row mb-4">
                     <div className="col-12">
@@ -155,11 +155,11 @@ const Search = () => {
             )}
 
             <div className="row">
-                {/* 🔍 SEARCH COLUMN */}
+                 
                 <div className="col-md-6 mb-4">
                     <div className="card p-4 shadow-lg" style={{ background: 'rgba(18, 18, 27, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px' }}>
                         
-                        {/* Search Category Toggle */}
+                         
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <h5 className="text-white mb-0">🔍 Global Search</h5>
                             <div className="btn-group btn-group-sm">
@@ -207,7 +207,7 @@ const Search = () => {
                     </div>
                 </div>
 
-                {/* 💡 SUGGESTIONS COLUMN */}
+                 
                 <div className="col-md-6 mb-4">
                     <div className="card p-4 shadow-lg" style={{ background: 'rgba(18, 18, 27, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px' }}>
                         <h5 className="text-white mb-3">💡 Suggestions</h5>
@@ -233,7 +233,7 @@ const Search = () => {
                 </div>
             </div>
           
-            {/* 👫 FRIENDS LIST SECTION */}
+             
             <div className="row mt-2">
                 <div className="col-12">
                     <div className="card p-4 shadow-lg" style={{ background: 'rgba(18, 18, 27, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px' }}>

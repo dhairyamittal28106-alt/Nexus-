@@ -9,7 +9,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // ✅ FIXED: Changed " " to ` ` so the BACKEND_URL variable actually works
+            
             const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -36,7 +36,7 @@ const Login = () => {
             }
         } catch (error) {
             console.error("Login error:", error);
-            // This alert triggers if the URL is wrong or server is down
+            
             alert("Connection Error: Check your BACKEND_URL in config.js");
         }
     }

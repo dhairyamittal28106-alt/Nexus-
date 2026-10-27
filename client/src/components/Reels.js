@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BACKEND_URL } from "../config";
 
 const Reels = () => {
-    // --- State Management ---
+    
     const [posts, setPosts] = useState([]); 
     const [showUpload, setShowUpload] = useState(false);
     const [showComments, setShowComments] = useState(null);
@@ -18,12 +18,12 @@ const Reels = () => {
     const [isMuted, setIsMuted] = useState(true); 
     const [showHeart, setShowHeart] = useState(null); 
     
-    // --- New States for Infinite Scroll & Limit ---
+    
     const [reelsWatched, setReelsWatched] = useState(0);
     const [hasAlerted100, setHasAlerted100] = useState(false);
     const lastViewedIndex = useRef(-1);
 
-    // --- Profile & Theme States ---
+    
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const savedTheme = localStorage.getItem('nexus_theme');
         return savedTheme ? JSON.parse(savedTheme) : true;
@@ -33,7 +33,7 @@ const Reels = () => {
     const [profilePic, setProfilePic] = useState(() => localStorage.getItem('profile_pic') || "");
     const [tempUsername, setTempUsername] = useState(username);
 
-    // ✨ ACTIVITY COLLECTIONS STATE
+    
     const [localAIStorage, setLocalAIStorage] = useState(() => {
         const saved = localStorage.getItem('nexus_ai_cache');
         return saved ? JSON.parse(saved) : { likes: {}, comments: {} };
@@ -41,7 +41,7 @@ const Reels = () => {
 
     const containerRef = useRef(null);
 
-    // --- LocalStorage Sync ---
+    
     useEffect(() => {
         localStorage.setItem('nexus_ai_cache', JSON.stringify(localAIStorage));
     }, [localAIStorage]);
@@ -208,7 +208,7 @@ const Reels = () => {
             setTimeout(() => setShowHeart(null), 1000);
         }
 
-        // Add to local activity cache for Settings Collection
+        
         const currentLikes = localAIStorage.likes[post._id] || post.likes || [];
         const isLiked = currentLikes.includes(username);
         const newLikes = isLiked ? currentLikes.filter(u => u !== username) : [...currentLikes, username];
@@ -315,7 +315,7 @@ const Reels = () => {
 
             <button onClick={() => setShowUpload(true)} style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 999, width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #bc1888)', border: 'none', color: 'white', fontSize: '30px' }}>+</button>
 
-            {/* ✨ UPDATED SETTINGS WITH COLLECTIONS */}
+             
             {showSettings && (
                 <div style={{ position: 'fixed', inset: 0, background: theme.bg, zIndex: 10001, padding: '40px', color: theme.text, overflowY: 'auto' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: `1px solid ${theme.border}`, paddingBottom: '20px' }}>
@@ -344,7 +344,7 @@ const Reels = () => {
                         </div>
                     </div>
 
-                    {/* ✨ NEW: ACTIVITY COLLECTIONS SECTION */}
+                     
                     <div className="row g-4 mt-2">
                         <div className="col-md-6">
                             <h5 className="mb-3">❤️ Liked Reels</h5>

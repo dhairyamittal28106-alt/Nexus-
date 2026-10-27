@@ -8,12 +8,12 @@ import Chat from './components/Chat';
 import Reels from './components/Reels';
 import Search from './components/Search';
 
-// ✨ NEW FEATURE IMPORTS
+
 import Studio from './components/Studio';
 import Jukebox from './components/Jukebox';
 
 function App() {
-  // ✨ STATE FOR PERSISTENT JUKEBOX
+  
   const [activeSong, setActiveSong] = useState(null);
 
   return (
@@ -27,13 +27,13 @@ function App() {
         <Route path="/reels" element={<Reels />} />
         <Route path="/search" element={<Search />} />
         
-        {/* ✨ NEW FEATURE ROUTES */}
-        {/* Pass setActiveSong to Jukebox so it can trigger the global player */}
+         
+         
         <Route path="/studio" element={<Studio />} />
         <Route path="/jukebox" element={<Jukebox setActiveSong={setActiveSong} />} />
       </Routes>
 
-      {/* ✨ MISSION: PERSISTENT JUKEBOX PLAYER (Sticky Footer) */}
+       
       {activeSong && (
         <div className="fixed-bottom bg-black border-top border-primary p-2 d-flex align-items-center justify-content-between px-4" style={{ zIndex: 2000, height: '70px' }}>
           <div className="d-flex align-items-center gap-3">

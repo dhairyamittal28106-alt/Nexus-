@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Post = require('../models/Post');
 
-// Static AI-generated reels to keep the feed feeling rich
+
 const aiReels = Array.from({ length: 40 }).map((_, i) => ({
     _id: `ai_${i}`,
     user: `Nexus_Creator_${i}`,
@@ -12,19 +12,19 @@ const aiReels = Array.from({ length: 40 }).map((_, i) => ({
     comments: []
 }));
 
-// GET /api/posts/feed - main reels feed
+
 router.get('/feed', async (req, res) => {
     try {
         const dbPosts = await Post.find().sort({ createdAt: -1 });
         res.json([...dbPosts, ...aiReels]);
     } catch (err) {
         console.error('Error fetching posts feed:', err);
-        // Always return an array so the client can safely map()
+        
         res.status(500).json([]);
     }
 });
 
-// POST /api/posts/like/:id - like/unlike a real (non-AI) post
+
 router.post('/like/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -42,10 +42,10 @@ router.post('/like/:id', async (req, res) => {
         const alreadyLiked = post.likes.includes(username);
 
         if (alreadyLiked) {
-            // Unlike
+            
             post.likes = post.likes.filter(user => user !== username);
         } else {
-            // Like
+            
             post.likes.push(username);
         }
 
@@ -57,7 +57,7 @@ router.post('/like/:id', async (req, res) => {
     }
 });
 
-// POST /api/posts/create - create a new reel (after Cloudinary upload)
+
 router.post('/create', async (req, res) => {
     try {
         const { user, caption, fileUrl, contentType } = req.body || {};
@@ -80,7 +80,7 @@ router.post('/create', async (req, res) => {
     }
 });
 
-// POST /api/posts/comment/:id - add a comment to a real (non-AI) post
+
 router.post('/comment/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -105,7 +105,7 @@ router.post('/comment/:id', async (req, res) => {
     }
 });
 
-// DELETE /api/posts/delete/:id - delete a real post
+
 router.delete('/delete/:id', async (req, res) => {
     try {
         const { id } = req.params;

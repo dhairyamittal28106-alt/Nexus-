@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || "SecretNexusKey";
 
-// 📝 SIGNUP: Create User
+
 router.post('/createuser', async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -27,7 +27,7 @@ router.post('/createuser', async (req, res) => {
         const data = { user: { id: user.id } };
         const authToken = jwt.sign(data, JWT_SECRET);
         
-        // ✨ FIXED: Added myId and preserved name/email features
+        
         res.json({ 
             success: true, 
             authToken, 
@@ -39,7 +39,7 @@ router.post('/createuser', async (req, res) => {
     }
 });
 
-// 🔑 LOGIN: Authenticate User
+
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -52,20 +52,20 @@ router.post('/login', async (req, res) => {
         const data = { user: { id: user.id } };
         const authToken = jwt.sign(data, JWT_SECRET);
         
-        // ✨ FIXED: Explicitly sending myId and preserving streak feature
+        
         res.json({ 
             success: true, 
             authToken, 
             username: user.name, 
             myId: user._id.toString(),
-            streak: user.streak || 0 // Preserving old streak feature
+            streak: user.streak || 0 
         });
     } catch (error) {
         res.status(500).json({ error: "Server Error during Login" });
     }
 });
 
-// 🔍 SEARCH: Find users (Case-Insensitive & Exclude Self)
+
 router.get('/search', async (req, res) => {
     try {
         const { name, myId } = req.query;
@@ -82,7 +82,7 @@ router.get('/search', async (req, res) => {
     }
 });
 
-// ➕ ADD FRIEND: Send Request
+
 router.post('/add-friend/:id', async (req, res) => {
     try {
         const targetId = req.params.id;
@@ -106,7 +106,7 @@ router.post('/add-friend/:id', async (req, res) => {
     }
 });
 
-// 📥 GET PENDING REQUESTS (Enhanced Population)
+
 router.get('/pending-requests', async (req, res) => {
     try {
         const { myId } = req.query;
@@ -124,7 +124,7 @@ router.get('/pending-requests', async (req, res) => {
     }
 });
 
-// ✅ HANDLE REQUEST: Accept or Reject
+
 router.post('/handle-request', async (req, res) => {
     try {
         const { myId, targetId, action } = req.body;
@@ -148,7 +148,7 @@ router.post('/handle-request', async (req, res) => {
     }
 });
 
-// 👫 GET FRIENDS LIST
+
 router.get('/friends-list', async (req, res) => {
     try {
         const { myId } = req.query;
@@ -162,7 +162,7 @@ router.get('/friends-list', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch friends list" });
     }
 });
-// ✨ REQUIRED for Offline Messaging
+
 router.get("/user/:name", async (req, res) => {
     try {
         const user = await User.findOne({ name: req.params.name });
@@ -175,7 +175,7 @@ router.get("/user/:name", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-// 💡 SUGGESTIONS: Mutual Friends & Newest Members
+
 router.get('/suggestions', async (req, res) => {
     try {
         const myId = req.query.myId;

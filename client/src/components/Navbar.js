@@ -7,7 +7,7 @@ const Navbar = () => {
     const [user, setUser] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Monitor login status on every page change
+    
     useEffect(() => {
         const token = localStorage.getItem('token');
         const name = localStorage.getItem('username');
@@ -71,12 +71,12 @@ const Navbar = () => {
                                     <Link className={`nav-link px-3 ${location.pathname === '/reels' ? 'text-white fw-bold' : 'text-white-50'}`} to="/reels">Reels</Link>
                                 </li>
 
-                                {/* ✨ UPDATED: STUDIO TAB (Now White) */}
+                                 
                                 <li className="nav-item">
                                     <Link className={`nav-link px-3 ${location.pathname === '/studio' ? 'text-white fw-bold' : 'text-white-50'}`} to="/studio">Studio </Link>
                                 </li>
 
-                                {/* ✨ UPDATED: JUKEBOX TAB (Now White) */}
+                                 
                                 <li className="nav-item">
                                     <Link className={`nav-link px-3 ${location.pathname === '/jukebox' ? 'text-white fw-bold' : 'text-white-50'}`} to="/jukebox">Jukebox </Link>
                                 </li>
